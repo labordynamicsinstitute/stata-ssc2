@@ -1,61 +1,32 @@
 {smcl}
 {* *! version 1.2.14  09oct2020}{...}
-{vieweralsosee "[R] ssc" "mansection R ssc"}{...}
+{vieweralsosee "[R] ssc2" "mansection R ssc2"}{...}
 {vieweralsosee "" "--"}{...}
-{vieweralsosee "[R] ado update" "help ado update"}{...}
-{vieweralsosee "[R] net" "help net"}{...}
-{vieweralsosee "[R] search" "help search"}{...}
-{vieweralsosee "[R] sj" "help sj"}{...}
-{vieweralsosee "[P] sysdir" "help sysdir"}{...}
-{viewerjumpto "Syntax" "ssc##syntax"}{...}
-{viewerjumpto "Description" "ssc##description"}{...}
-{viewerjumpto "Links to PDF documentation" "ssc##linkspdf"}{...}
-{viewerjumpto "Command overview" "ssc##overview"}{...}
-{viewerjumpto "Options for use with ssc new" "ssc##options_ssc_new"}{...}
-{viewerjumpto "Options for use with ssc hot" "ssc##options_ssc_hot"}{...}
-{viewerjumpto "Option for use with ssc describe" "ssc##option_ssc_describe"}{...}
-{viewerjumpto "Options for use with ssc install" "ssc##options_ssc_install"}{...}
-{viewerjumpto "Option for use with ssc type" "ssc##option_ssc_type"}{...}
-{viewerjumpto "Options for use with ssc copy" "ssc##options_ssc_copy"}{...}
-{viewerjumpto "Remarks" "ssc##remarks"}{...}
-{viewerjumpto "Examples" "ssc##examples"}{...}
+{vieweralsosee "[R] ssc" "help ado update"}{...}
+{viewerjumpto "Syntax" "ssc2##syntax"}{...}
+{viewerjumpto "Description" "ssc2##description"}{...}
+{viewerjumpto "Command overview" "ssc2##overview"}{...}
+{viewerjumpto "Option for use with ssc2 describe" "ssc2##option_ssc2_describe"}{...}
+{viewerjumpto "Options for use with ssc2 install" "ssc2##options_ssc2_install"}{...}
+{viewerjumpto "Option for use with ssc2 type" "ssc2##option_ssc2_type"}{...}
+{viewerjumpto "Options for use with ssc2 copy" "ssc2##options_ssc2_copy"}{...}
+{viewerjumpto "Remarks" "ssc2##remarks"}{...}
+{viewerjumpto "Examples" "ssc2##examples"}{...}
 {p2colset 1 12 14 2}{...}
-{p2col:{bf:[R] ssc} {hline 2}}Install and uninstall packages from SSC{p_end}
-{p2col:}({mansection R ssc:View complete PDF manual entry}){p_end}
+{p2col:{bf:[R] ssc2} {hline 2}}Install and uninstall packages from SSC mirror{p_end}
 {p2colreset}{...}
 
 
 {marker syntax}{...}
 {title:Syntax}
 
-{phang}
-Summary of packages most recently added or updated at SSC
-
-{p 8 12 2}
-{cmd:ssc}
-{cmd:new}
-[{cmd:,}
-{opt sav:ing}{cmd:(}{it:{help filename}}[{cmd:,} {opt replace}]{cmd:)}
-{opt type}]
 
 
 {phang}
-Summary of most popular packages at SSC
+Describe a specified package at SSC mirror
 
 {p 8 12 2}
-{cmd:ssc}
-{cmd:hot}
-[{cmd:,}
-{cmd:n(}{it:#}{cmd:)}
-{cmdab:auth:or}{cmd:(}{it:name}{cmd:)}]
-
-
-
-{phang}
-Describe a specified package at SSC
-
-{p 8 12 2}
-{cmd:ssc}
+{cmd:ssc2}
 {opt d:escribe}
 {c -(} {it:pkgname} | {it:letter} {c )-}
 [{cmd:,}
@@ -64,10 +35,10 @@ Describe a specified package at SSC
 
 
 {phang}
-Install a specified package from SSC
+Install a specified package from SSC mirror
 
 {p 8 12 2}
-{cmd:ssc}
+{cmd:ssc2}
 {opt inst:all}
 {it:pkgname}
 [{cmd:,}
@@ -75,30 +46,23 @@ Install a specified package from SSC
 {opt replace}]
 
 
-{phang}
-Uninstall from your computer a previously installed package from SSC
-
-{p 8 12 2}
-{cmd:ssc}
-{opt uninstall}
-{it:pkgname}
 
 
 {phang}
-Type a specific file stored at SSC
+Type a specific file stored at SSC mirror
 
 {p 8 12 2}
-{cmd:ssc}
+{cmd:ssc2}
 {opt type}
 {it:{help filename}}
 [{cmd:, asis}]
 
 
 {phang}
-Copy a specific file from SSC to your computer
+Copy a specific file from SSC mirror to your computer
 
 {p 8 12 2}
-{cmd:ssc}
+{cmd:ssc2}
 {opt copy}
 {it:{help filename}}
 [{cmd:,}
@@ -110,42 +74,19 @@ Copy a specific file from SSC to your computer
 
 
 {p 4 6 2}
-where {it:letter} in {opt ssc describe} is {opt a}-{opt z} or {opt _}.
+where {it:letter} in {opt ssc2 describe} is {opt a}-{opt z} or {opt _}.
 
 
 {marker description}{...}
 {title:Description}
 
 {pstd}
-{opt ssc} works with packages (and files) from the Statistical Software
-Components (SSC) Archive, which is often called the Boston College Archive and
-is provided by {browse "http://www.repec.org"}.
+{opt ssc2} works with packages (and files) from the Statistical Software
+Components (ssc2) Archive, as mirrored.
+
 
 {pstd}
-The SSC has become the premier Stata download site for community-contributed
-software on the web.  {opt ssc} provides a convenient interface to the
-resources available there.  For example, on
-{browse "http://www.statalist.org/":Statalist}, users will often
-write
-
-{p 8 8 4}
-The program can be found by typing {cmd:ssc install newprogramname}.
-
-{pstd}
-Typing that would load everything associated with {cmd:newprogramname},
-including the help files.
-
-{pstd}
-If you are searching for what is available, 
-type {cmd:ssc} {cmd:new} and {cmd:ssc} {cmd:hot}, and
-see {manhelp search R}.
-{opt search} searches the SSC and other places, too.
-{cmd:search}
-provides a GUI interface from which programs can be
-installed, including the programs at the SSC Archive.
-
-{pstd}
-You can uninstall particular packages by using {cmd:ssc} {cmd:uninstall}.
+You can uninstall particular packages by using {cmd:ssc2} {cmd:uninstall}.
 For the packages that you keep, 
 see {helpb ado update:[R] ado update}
 for an automated way of keeping those packages up to date.
@@ -154,9 +95,9 @@ for an automated way of keeping those packages up to date.
 {marker linkspdf}{...}
 {title:Links to PDF documentation}
 
-        {mansection R sscQuickstart:Quick start}
+        {mansection R ssc2Quickstart:Quick start}
 
-        {mansection R sscRemarksandexamples:Remarks and examples}
+        {mansection R ssc2Remarksandexamples:Remarks and examples}
 
 {pstd}
 The above sections are not included in this help file.
@@ -166,64 +107,52 @@ The above sections are not included in this help file.
 {title:Command overview}
 
 {phang}
-{opt ssc new} summarizes the packages made available or
-    updated recently.   Output is presented in the Stata Viewer, and from
-    there you may click to find out more about individual packages or 
-    to install them.
-
-{phang}
-{opt ssc hot} 
-    lists the most popular packages -- popular based on a moving 
-    average of the number of downloads in the past three months.
-    By default, 10 packages are listed.
-
-{phang}
-{opt ssc describe} {it:pkgname} describes, but does not install, the specified
+{opt ssc2 describe} {it:pkgname} describes, but does not install, the specified
     package.  Use {cmd:search} to find packages; see {manhelp search R}.  If
     you know the package name but do not know the exact spelling, type
-    {opt ssc describe} followed by one letter, {opt a}-{opt z} or {opt _}
+    {opt ssc2 describe} followed by one letter, {opt a}-{opt z} or {opt _}
     (underscore), to list all the packages starting with that letter.
 
 {phang}
-{opt ssc install} {it:pkgname} installs the specified package.  You do not
+{opt ssc2 install} {it:pkgname} installs the specified package.  You do not
     have to describe a package before installing it.  (You may also
     install a package by using {cmd:net} {cmd:install}; see {manhelp net R}.)
 
 {phang}
-{opt ssc uninstall} {it:pkgname} removes the previously installed
+{opt ssc2 uninstall} {it:pkgname} removes the previously installed
     package from your computer.  It does not matter how the package was
-    installed.  ({opt ssc uninstall} is a synonym for {opt ado uninstall}, so
+    installed.  ({opt ssc2 uninstall} is a synonym for {opt ado uninstall}, so
     either may be used to uninstall any package.)
 
 {phang}
-{opt ssc type} {it:{help filename}} types a specific file stored at SSC.
-    {opt ssc cat} is a synonym for {opt ssc type}, which may appeal to those
+{opt ssc2 type} {it:{help filename}} types a specific file stored at ssc2.
+    {opt ssc2 cat} is a synonym for {opt ssc2 type}, which may appeal to those
     familiar with Unix.
 
 {phang}
-{opt ssc copy} {it:filename} copies a specific file stored at SSC to your
+{opt ssc2 copy} {it:filename} copies a specific file stored at ssc2 to your
     computer.  By default, the file is copied to the current directory, but
-    you can use options to change this.  {opt ssc copy} is a rarely used
-    alternative to {opt ssc install} ...{cmd:, all}.  {opt ssc cp} is a
-    synonym for {opt ssc copy}.
+    you can use options to change this.  {opt ssc2 copy} is a rarely used
+    alternative to {opt ssc2 install} ...{cmd:, all}.  {opt ssc2 cp} is a
+    synonym for {opt ssc2 copy}.
 
 
-{marker options_ssc_new}{...}
-{title:Options for use with ssc new}
+{marker options_ssc2_new}{...}
+{title:Options for use with ssc2 new}
 
 {phang}
 {cmd:saving(}{it:{help filename}}[{cmd:, replace}]{cmd:)} specifies that the
     "what's new" summary be saved in {it:filename}.  If {it:filename} is
     specified without a suffix, {it:filename}{cmd:.smcl} is assumed.  If
-    {opt saving()} is not specified, {cmd:saving(ssc_result.smcl)} is assumed.
+    {opt saving()} is not specified, {cmd:saving(ssc2_result.smcl)} is assumed.
 
 {phang}
 {opt type} specifies that the "what's new" results be displayed in the
     Results window rather than in the Viewer.
 
 
-{marker options_ssc_hot}{...}
-{title:Options for use with ssc hot}
+{marker options_ssc2_hot}{...}
+{title:Options for use with ssc2 hot}
 
 {phang}
 {cmd:n(}{it:#}{cmd:)} 
@@ -237,8 +166,8 @@ The above sections are not included in this help file.
      packages are listed.
 
 
-{marker option_ssc_describe}{...}
-{title:Option for use with ssc describe}
+{marker option_ssc2_describe}{...}
+{title:Option for use with ssc2 describe}
 
 {phang}
 {cmd:saving(}{it:{help filename}}[{cmd:, replace}]{cmd:)} specifies that, in
@@ -259,8 +188,8 @@ The above sections are not included in this help file.
     exists.
 
 
-{marker options_ssc_install}{...}
-{title:Options for use with ssc install}
+{marker options_ssc2_install}{...}
+{title:Options for use with ssc2 install}
 
 {phang}
 {opt all} specifies that any ancillary files associated with the
@@ -271,9 +200,9 @@ The above sections are not included in this help file.
 
 {pmore}
     You can find out which files are associated with the package by typing
-    {cmd:ssc describe} {it:pkgname} before or after installing.  If you
+    {cmd:ssc2 describe} {it:pkgname} before or after installing.  If you
     install without using the {opt all} option and then want the ancillary
-    files, you can {opt ssc install} again.
+    files, you can {opt ssc2 install} again.
 
 {phang}
 {opt replace} specifies that any files being downloaded that already exist
@@ -284,12 +213,12 @@ The above sections are not included in this help file.
 {pmore}
     It is better not to specify the {opt replace} option and wait to see if
     there is a problem.  If there is a problem, it is usually better to
-    uninstall the old package by using {opt ssc uninstall} or
+    uninstall the old package by using {opt ssc2 uninstall} or
     {opt ado uninstall} (which are, in fact, the same command).
 
 
-{marker option_ssc_type}{...}
-{title:Option for use with ssc type}
+{marker option_ssc2_type}{...}
+{title:Option for use with ssc2 type}
 
 {phang}
 {opt asis} affects how files with the suffixes {cmd:.smcl} 
@@ -298,8 +227,8 @@ The above sections are not included in this help file.
     displayed in raw, uninterpreted form.
 
 
-{marker options_ssc_copy}{...}
-{title:Options for use with ssc copy}
+{marker options_ssc2_copy}{...}
+{title:Options for use with ssc2 copy}
 
 {phang}
 {opt plus} specifies that the
@@ -340,20 +269,20 @@ that they have written available to others via the web.  The files that
 comprise a new feature are called a package, and a package usually consists of
 one or more ado-files and help files.  The {helpb net} command makes it
 reasonably easy to install and uninstall packages regardless of where
-they are on the web.  One site, the SSC, has become particularly
-popular as a repository for additions to Stata.  Command {cmd:ssc} is an
-easier to use version of {cmd:net} designed especially for the SSC.
+they are on the web.  One site, the ssc2, has become particularly
+popular as a repository for additions to Stata.  Command {cmd:ssc2} is an
+easier to use version of {cmd:net} designed especially for the ssc2.
 
 {pstd}
-Many packages are available at the SSC.  Packages are named, such as
-{hi:oaxaca}, {hi:estout}, or {hi:egenmore}.  At SSC, capitalization is not
+Many packages are available at the ssc2.  Packages are named, such as
+{hi:oaxaca}, {hi:estout}, or {hi:egenmore}.  At ssc2, capitalization is not
 significant, so {hi:Oaxaca}, {hi:ESTOUT}, and {hi:EGENmore} are
 ways of writing the same package names.
 
 {pstd}
 When you type
 
-	{cmd:. ssc install oaxaca}
+	{cmd:. ssc2 install oaxaca}
 
 {pstd}
 the files associated with the package are downloaded and
@@ -362,41 +291,41 @@ the commands being added to Stata, so one would expect that installing the
 package {hi:oaxaca} will add command {cmd:oaxaca} to Stata on your
 computer, and expect that typing {cmd:help oaxaca} will provide the
 documentation.  That is the situation here, but that is not
-always so.  Before or after installing a package, type {cmd:ssc describe}
+always so.  Before or after installing a package, type {cmd:ssc2 describe}
 {it:pkgname} to obtain the details.
 
 
 {marker examples}{...}
 {title:Examples}
 
-{pstd}Describe most recently added or updated packages at SSC{p_end}
-{phang2}{cmd:. ssc new}
+{pstd}Describe most recently added or updated packages at ssc2{p_end}
+{phang2}{cmd:. ssc2 new}
 
-{pstd}Describe the most popular packages at SSC{p_end}
-{phang2}{cmd:. ssc hot}
+{pstd}Describe the most popular packages at ssc2{p_end}
+{phang2}{cmd:. ssc2 hot}
 
 {pstd}Describe the package {cmd:oaxaca}{p_end}
-{phang2}{cmd:. ssc describe oaxaca}
+{phang2}{cmd:. ssc2 describe oaxaca}
 
 {pstd}Describe the package {cmd:oaxaca} and save the description to the
 file {cmd:oaxaca.log}{p_end}
-{phang2}{cmd:. ssc describe oaxaca, saving(oaxaca.log)}
+{phang2}{cmd:. ssc2 describe oaxaca, saving(oaxaca.log)}
 
 {pstd}List all packages, along with a brief description, that begin with the
 letter {cmd:o}{p_end}
-{phang2}{cmd:. ssc describe o}
+{phang2}{cmd:. ssc2 describe o}
 
 {pstd}Same as above, but also save the listing to the file {cmd:o.index}{p_end}
-{phang2}{cmd:. ssc describe o, saving(o.index)}
+{phang2}{cmd:. ssc2 describe o, saving(o.index)}
 
 {pstd}Install package {cmd:oaxaca}{p_end}
-{phang2}{cmd:. ssc install oaxaca}
+{phang2}{cmd:. ssc2 install oaxaca}
 
 {pstd}Uninstall previously installed package {cmd:oaxaca}{p_end}
-{phang2}{cmd:. ssc uninstall oaxaca}
+{phang2}{cmd:. ssc2 uninstall oaxaca}
 
-{pstd}Type file {cmd:whitetst.hlp} that is stored at SSC{p_end}
-{phang2}{cmd:. ssc type whitetst.hlp}
+{pstd}Type file {cmd:whitetst.hlp} that is stored at ssc2{p_end}
+{phang2}{cmd:. ssc2 type whitetst.hlp}
 
-{pstd}Copy file {cmd:whitetst.ado} from SSC to your computer{p_end}
-{phang2}{cmd:. ssc copy whitetst.ado}{p_end}
+{pstd}Copy file {cmd:whitetst.ado} from ssc2 to your computer{p_end}
+{phang2}{cmd:. ssc2 copy whitetst.ado}{p_end}

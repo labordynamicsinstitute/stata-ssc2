@@ -1,6 +1,7 @@
 # ssc2
 
 ## Overview
+
 Allow for installation of snapshot packages. Backward compatible.
 
 ## Description
@@ -23,6 +24,20 @@ net install ssc2, all replace from("https://raw.githubusercontent.com/aeadataedi
 ```stata
 * or a specific version, e.g. v1.0.0
 net install ssc2, all replace from("https://raw.githubusercontent.com/aeadataeditor/ssc-mirror-stata/v1.0.0/")
+```
+## Example
+
+Example run on 2023-01-29:
+
+```stata
+ssc2 install cmp, date(2022-01-07)
+which cmp
+ssc uninstall cmp
+ssc install cmp
+which cmp
+ssc uninstall cmp
+ssc2 install cmp
+which cmp
 ```
 
 ## Why?
