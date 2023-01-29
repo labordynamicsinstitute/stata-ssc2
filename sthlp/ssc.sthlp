@@ -1,15 +1,31 @@
 {smcl}
-{* *! version 1.2.1  11jun2009}{...}
-{cmd:help ssc}
-{hline}
-
-{title:Title}
-
-{p2colset 5 16 18 2}{...}
-{p2col:{manlink R ssc} {hline 2}}Install and uninstall packages from SSC{p_end}
+{* *! version 1.2.14  09oct2020}{...}
+{vieweralsosee "[R] ssc" "mansection R ssc"}{...}
+{vieweralsosee "" "--"}{...}
+{vieweralsosee "[R] ado update" "help ado update"}{...}
+{vieweralsosee "[R] net" "help net"}{...}
+{vieweralsosee "[R] search" "help search"}{...}
+{vieweralsosee "[R] sj" "help sj"}{...}
+{vieweralsosee "[P] sysdir" "help sysdir"}{...}
+{viewerjumpto "Syntax" "ssc##syntax"}{...}
+{viewerjumpto "Description" "ssc##description"}{...}
+{viewerjumpto "Links to PDF documentation" "ssc##linkspdf"}{...}
+{viewerjumpto "Command overview" "ssc##overview"}{...}
+{viewerjumpto "Options for use with ssc new" "ssc##options_ssc_new"}{...}
+{viewerjumpto "Options for use with ssc hot" "ssc##options_ssc_hot"}{...}
+{viewerjumpto "Option for use with ssc describe" "ssc##option_ssc_describe"}{...}
+{viewerjumpto "Options for use with ssc install" "ssc##options_ssc_install"}{...}
+{viewerjumpto "Option for use with ssc type" "ssc##option_ssc_type"}{...}
+{viewerjumpto "Options for use with ssc copy" "ssc##options_ssc_copy"}{...}
+{viewerjumpto "Remarks" "ssc##remarks"}{...}
+{viewerjumpto "Examples" "ssc##examples"}{...}
+{p2colset 1 12 14 2}{...}
+{p2col:{bf:[R] ssc} {hline 2}}Install and uninstall packages from SSC{p_end}
+{p2col:}({mansection R ssc:View complete PDF manual entry}){p_end}
 {p2colreset}{...}
 
 
+{marker syntax}{...}
 {title:Syntax}
 
 {phang}
@@ -19,7 +35,7 @@ Summary of packages most recently added or updated at SSC
 {cmd:ssc}
 {cmd:new}
 [{cmd:,}
-{opt sav:ing}{cmd:(}{it:filename}[{cmd:,} {opt replace}]{cmd:)}
+{opt sav:ing}{cmd:(}{it:{help filename}}[{cmd:,} {opt replace}]{cmd:)}
 {opt type}]
 
 
@@ -43,7 +59,7 @@ Describe a specified package at SSC
 {opt d:escribe}
 {c -(} {it:pkgname} | {it:letter} {c )-}
 [{cmd:,}
-{cmd:saving(}{it:filename}[{cmd:, replace}]{cmd:)}]
+{cmd:saving(}{it:{help filename}}[{cmd:, replace}]{cmd:)}]
 
 
 
@@ -74,7 +90,7 @@ Type a specific file stored at SSC
 {p 8 12 2}
 {cmd:ssc}
 {opt type}
-{it:filename}
+{it:{help filename}}
 [{cmd:, asis}]
 
 
@@ -84,7 +100,7 @@ Copy a specific file from SSC to your computer
 {p 8 12 2}
 {cmd:ssc}
 {opt copy}
-{it:filename}
+{it:{help filename}}
 [{cmd:,}
 {opt pl:us}
 {opt p:ersonal}
@@ -97,18 +113,19 @@ Copy a specific file from SSC to your computer
 where {it:letter} in {opt ssc describe} is {opt a}-{opt z} or {opt _}.
 
 
+{marker description}{...}
 {title:Description}
 
 {pstd}
 {opt ssc} works with packages (and files) from the Statistical Software
-Components (SSC) archive, which is often called the Boston College Archive and
+Components (SSC) Archive, which is often called the Boston College Archive and
 is provided by {browse "http://www.repec.org"}.
 
 {pstd}
-The SSC has become the premier Stata download site for user-written software
-on the web.  {opt ssc} provides a convenient interface to the
+The SSC has become the premier Stata download site for community-contributed
+software on the web.  {opt ssc} provides a convenient interface to the
 resources available there.  For example, on
-{browse "http://www.stata.com/support/statalist":Statalist}, users will often
+{browse "http://www.statalist.org/":Statalist}, users will often
 write
 
 {p 8 8 4}
@@ -120,20 +137,32 @@ including the help files.
 
 {pstd}
 If you are searching for what is available, 
-try {cmd:ssc} {cmd:new} and {cmd:ssc} {cmd:hot}, and
+type {cmd:ssc} {cmd:new} and {cmd:ssc} {cmd:hot}, and
 see {manhelp search R}.
 {opt search} searches the SSC and other places, too.
 {cmd:search}
 provides a GUI interface from which programs can be
-installed, including the programs at the SSC archive.
+installed, including the programs at the SSC Archive.
 
 {pstd}
 You can uninstall particular packages by using {cmd:ssc} {cmd:uninstall}.
 For the packages that you keep, 
-see {manhelp adoupdate R}
+see {helpb ado update:[R] ado update}
 for an automated way of keeping those packages up to date.
 
 
+{marker linkspdf}{...}
+{title:Links to PDF documentation}
+
+        {mansection R sscQuickstart:Quick start}
+
+        {mansection R sscRemarksandexamples:Remarks and examples}
+
+{pstd}
+The above sections are not included in this help file.
+
+
+{marker overview}{...}
 {title:Command overview}
 
 {phang}
@@ -167,7 +196,7 @@ for an automated way of keeping those packages up to date.
     either may be used to uninstall any package.)
 
 {phang}
-{opt ssc type} {it:filename} types a specific file stored at SSC.
+{opt ssc type} {it:{help filename}} types a specific file stored at SSC.
     {opt ssc cat} is a synonym for {opt ssc type}, which may appeal to those
     familiar with Unix.
 
@@ -179,19 +208,21 @@ for an automated way of keeping those packages up to date.
     synonym for {opt ssc copy}.
 
 
+{marker options_ssc_new}{...}
 {title:Options for use with ssc new}
 
 {phang}
-{cmd:saving(}{it:filename}[{cmd:, replace}]{cmd:)} specifies the "what's new"
-    summary be saved in {it:filename}.  If {it:filename} is specified
-    without a suffix, {it:filename}{cmd:.smcl} is assumed.  If {opt saving()}
-    is not specified, {cmd:saving(ssc_result.smcl)} is assumed.
+{cmd:saving(}{it:{help filename}}[{cmd:, replace}]{cmd:)} specifies that the
+    "what's new" summary be saved in {it:filename}.  If {it:filename} is
+    specified without a suffix, {it:filename}{cmd:.smcl} is assumed.  If
+    {opt saving()} is not specified, {cmd:saving(ssc_result.smcl)} is assumed.
 
 {phang}
 {opt type} specifies that the "what's new" results be displayed in the
     Results window rather than in the Viewer.
 
 
+{marker options_ssc_hot}{...}
 {title:Options for use with ssc hot}
 
 {phang}
@@ -206,34 +237,36 @@ for an automated way of keeping those packages up to date.
      packages are listed.
 
 
+{marker option_ssc_describe}{...}
 {title:Option for use with ssc describe}
 
 {phang}
-{cmd:saving(}{it:filename}[{cmd:, replace}]{cmd:)} specifies that, in addition
-    to the description's being displayed on your screen, it be saved in
-    the specified file.
+{cmd:saving(}{it:{help filename}}[{cmd:, replace}]{cmd:)} specifies that, in
+     addition to the description's being displayed on your screen, it be saved
+     in the specified file.
 
 {pmore}
     If {it:filename} is specified without an extension, {opt .smcl} will be
     assumed, and the file will be saved as a {help smcl:SMCL} file.
 
 {pmore}
-    If {it:filename} is specified with an extension, then no default extension
+    If {it:filename} is specified with an extension, no default extension
     is added.  If the extension is {opt .log}, the file will be stored as
-    an ASCII text file.
+    a text file.
 
 {pmore}
     If {opt replace} is specified, {it:filename} is replaced if it already
     exists.
 
 
+{marker options_ssc_install}{...}
 {title:Options for use with ssc install}
 
 {phang}
 {opt all} specifies that any ancillary files associated with the
     package be downloaded to your current directory, in addition
     to the program and help files being installed.  Ancillary files are files
-    that do not end in {opt .ado} or {opt .sthlp}, and typically contain
+    that do not end in {opt .ado} or {opt .sthlp} and typically contain
     datasets or examples of the use of the new command.
 
 {pmore}
@@ -252,9 +285,10 @@ for an automated way of keeping those packages up to date.
     It is better not to specify the {opt replace} option and wait to see if
     there is a problem.  If there is a problem, it is usually better to
     uninstall the old package by using {opt ssc uninstall} or
-    {helpb ado:ado uninstall} (which are, in fact, the same command).
+    {opt ado uninstall} (which are, in fact, the same command).
 
 
+{marker option_ssc_type}{...}
 {title:Option for use with ssc type}
 
 {phang}
@@ -264,16 +298,17 @@ for an automated way of keeping those packages up to date.
     displayed in raw, uninterpreted form.
 
 
+{marker options_ssc_copy}{...}
 {title:Options for use with ssc copy}
 
 {phang}
 {opt plus} specifies that the
-    file be copied to the PLUS directory, the directory where
-    user-written additions are installed.  Typing {helpb sysdir}
-    will display the identity of the PLUS directory on your computer.
+    file be copied to the {cmd:PLUS} directory, the directory where
+    community-contributed additions are installed.  Typing {helpb sysdir}
+    will display the identity of the {cmd:PLUS} directory on your computer.
 
 {phang}
-{opt personal} specifies that the file be copied to your PERSONAL
+{opt personal} specifies that the file be copied to your {cmd:PERSONAL}
     directory as reported by {helpb sysdir}.
 
 {pmore}
@@ -296,13 +331,14 @@ for an automated way of keeping those packages up to date.
     computer/operating system.
 
 
+{marker remarks}{...}
 {title:Remarks}
 
 {pstd}
 Users can add new features to Stata, and some users choose to make new features
 that they have written available to others via the web.  The files that
 comprise a new feature are called a package, and a package usually consists of
-one or more ado-files and help files.  The {cmd:net} command makes it
+one or more ado-files and help files.  The {helpb net} command makes it
 reasonably easy to install and uninstall packages regardless of where
 they are on the web.  One site, the SSC, has become particularly
 popular as a repository for additions to Stata.  Command {cmd:ssc} is an
@@ -323,13 +359,14 @@ When you type
 the files associated with the package are downloaded and
 installed on your computer.  Package names usually correspond to the names of
 the commands being added to Stata, so one would expect that installing the
-package {hi:oaxaca} will add new command {cmd:oaxaca} to Stata on your
+package {hi:oaxaca} will add command {cmd:oaxaca} to Stata on your
 computer, and expect that typing {cmd:help oaxaca} will provide the
 documentation.  That is the situation here, but that is not
 always so.  Before or after installing a package, type {cmd:ssc describe}
 {it:pkgname} to obtain the details.
 
 
+{marker examples}{...}
 {title:Examples}
 
 {pstd}Describe most recently added or updated packages at SSC{p_end}
@@ -362,16 +399,4 @@ letter {cmd:o}{p_end}
 {phang2}{cmd:. ssc type whitetst.hlp}
 
 {pstd}Copy file {cmd:whitetst.ado} from SSC to your computer{p_end}
-{phang2}{cmd:. ssc copy whitetst.ado}
-
-
-{title:Also see}
-
-{psee}
-Manual:  {manlink R ssc}
-
-{psee}
-{space 2}Help:  {manhelp adoupdate R}, {manhelp net R}, {manhelp search R},
-{manhelp sj R}, {manhelp statalist U:3.4 The Stata listserver},
-{manhelp sysdir P}
-{p_end}
+{phang2}{cmd:. ssc copy whitetst.ado}{p_end}

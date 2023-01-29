@@ -1,4 +1,4 @@
-*! version 1.1.2  06nov2008
+*! version 1.1.6  15oct2019
 program define ssc
 	version 7
 	gettoken cmd 0 : 0, parse(" ,")
@@ -24,7 +24,7 @@ program define ssc
 
 
 	local l = length(`"`cmd'"')
-	if `"`cmd'"' == substr("whatsnew",1,max(4,`l')) {
+	if `"`cmd'"' == bsubstr("whatsnew",1,max(4,`l')) {
 		sscwhatsnew `0'
 		exit
 	}
@@ -32,7 +32,7 @@ program define ssc
 		sscwhatsnew `0'
 		exit
 	}
-	if `"`cmd'"' == substr("whatshot",1,max(6,`l')) {
+	if `"`cmd'"' == bsubstr("whatshot",1,max(6,`l')) {
 		ssc_whatshot `0'
 		exit
 	}
@@ -40,11 +40,11 @@ program define ssc
 		ssc_whatshot `0'
 		exit
 	}
-	if `"`cmd'"' == substr("describe",1,max(1,`l')) {
+	if `"`cmd'"' == bsubstr("describe",1,max(1,`l')) {
 		sscdescribe `0'
 		exit
 	}
-	if `"`cmd'"' == substr("install",1,max(4,`l')) {
+	if `"`cmd'"' == bsubstr("install",1,max(4,`l')) {
 		sscinstall `0'
 		exit
 	}
@@ -60,7 +60,7 @@ program define ssc
 		ssctype `0'
 		exit
 	}
-	di as err `"ssc: `cmd': invalid subcommand"'
+	di as err `"{bf:ssc `cmd'}: invalid subcommand"'
 	exit 198
 end
 
@@ -134,7 +134,7 @@ end
 	
 
 program define InvalidSaving
-	di as err `"saving(`0'):  invalid syntax"'
+	di as err `"option {bf:saving(`0')}:  invalid syntax"'
 	exit 198
 end
 		
@@ -149,7 +149,7 @@ program define sscdescribe
 	if length(`"`pkgname'"')==1 {
 		local pkgname = lower(`"`pkgname'"')
 		if !index("abcdefghijklmnopqrstuvwxyz_",`"`pkgname'"') {
-			di as err "ssc describe: letter must be a-z or _"
+			di as err "{bf:ssc describe}: letter must be a-z or _"
 			exit 198
 		}
 	}
@@ -166,11 +166,11 @@ end
 
 program define sscdescribe_u
 	args pkgname
-	local ltr = substr(`"`pkgname'"',1,1)
+	local ltr = bsubstr(`"`pkgname'"',1,1)
 	if length(`"`pkgname'"')==1 {
 		net from http://fmwww.bc.edu/repec/bocode/`ltr'
 		di as txt /*
-*/ "(type -{cmd:ssc describe} {it:pkgname}- for more information on {it:pkgname})"
+*/ "(type {cmd:ssc describe} {it:pkgname} for more information on {it:pkgname})"
 	}
 	else {
 		qui net from http://fmwww.bc.edu/repec/bocode/`ltr'
@@ -178,14 +178,14 @@ program define sscdescribe_u
 		local rc = _rc
 		if _rc==601 | _rc==661  {
 			di as err /*
-*/ `"ssc describe: "`pkgname'" not found at SSC, type -{cmd:findit `pkgname'}-"'
+*/ `"{bf:ssc describe}: "{bf:`pkgname'}" not found at SSC, type {stata search `pkgname'}"'
 			di as err /*
-*/ "(To find all packages at SSC that start with `ltr', type -{cmd:ssc describe `ltr'}-)"
+*/ "(To find all packages at SSC that start with `ltr', type {stata ssc describe `ltr'})"
 		}
 		if _rc==0 {
 			net describe `pkgname'
 			di as txt /*
-			*/ "(type -{cmd:ssc install `pkgname'}- to install)"
+			*/ "(type {stata ssc install `pkgname'} to install)"
 		}
 		exit `rc'
 	}
@@ -198,15 +198,15 @@ program define sscinstall
 	CheckPkgname "ssc install" `"`pkgname'"'
 	local pkgname `"`s(pkgname)'"'
 	syntax [, ALL REPLACE]
-	local ltr = substr("`pkgname'",1,1)
+	local ltr = bsubstr("`pkgname'",1,1)
 	qui net from http://fmwww.bc.edu/repec/bocode/`ltr'
 	capture net describe `pkgname'
 	local rc = _rc
 	if _rc==601 | _rc==661 {
 		di as err /*
-*/ `"ssc install: "`pkgname'" not found at SSC, type -{cmd:findit `pkgname'}-"'
+*/ `"{bf:ssc install}: "{bf:`pkgname'}" not found at SSC, type {stata search `pkgname'}"'
 		di as err /*
-*/ "(To find all packages at SSC that start with `ltr', type -{cmd:ssc describe `ltr'}-)"
+*/ "(To find all packages at SSC that start with `ltr', type {stata ssc describe `ltr'})"
 		exit `rc'
 	}
 	if _rc {
@@ -217,7 +217,7 @@ program define sscinstall
 	if _rc==601 | _rc==661 {
 		di
 		di as err /*
-*/ `"{p}ssc install: apparent error in package file for `pkgname'; please notify {browse "mailto:repec@repec.org":repec@repec.org}, providing package name{p_end}"'
+*/ `"{p}{bf:ssc install}: apparent error in package file for {bf:`pkgname'}; please notify {browse "mailto:repec@repec.org":repec@repec.org}, providing package name{p_end}"'
 	}
 	exit `rc'
 end
@@ -256,10 +256,10 @@ program define ssccopy
 		local op "plus"
 	}
 	if "`stbplus'"!="" & "`personal'"!="" {
-		di as err "may not specify both -`op'- and -personal- options"
+		di as err "options {bf:`op'} and {bf:personal} may not be specified together"
 		exit 198
 	}
-	local ltr = substr(`"`fn'"',1,1)
+	local ltr = bsubstr(`"`fn'"',1,1)
 
 
 	if "`stbplus'"!="" {
@@ -282,7 +282,7 @@ program define ssccopy
 	local rc = _rc
 	if _rc==601 | _rc==661 {
 		di as err /*
-	*/ `"ssc copy: "`fn'" not found at SSC, type -{cmd:findit `fn'}-"'
+	*/ `"{bf:ssc copy}: "{bf:`fn'}" not found at SSC, type {stata search `fn'}"'
 		exit `rc'
 	}
 	if _rc {
@@ -297,12 +297,12 @@ program define ssctype
 	syntax [, ASIS]
 	CheckFilename "ssc type" `"`fn'"'
 	local fn `"`s(fn)'"'
-	local ltr = substr(`"`fn'"',1,1)
+	local ltr = bsubstr(`"`fn'"',1,1)
 	capture type `"http://fmwww.bc.edu/repec/bocode/`ltr'/`fn'"'
 	local rc = _rc
 	if _rc==601 | _rc==661 {
 		di as err /*
-	*/ `"ssc type: "`fn'" not found at SSC, type -{cmd:findit `fn'}-"'
+	*/ `"{bf:ssc type}: "{bf:`fn'}" not found at SSC, type {stata search `fn'}"'
 		exit `rc'
 	}
 	if _rc {
@@ -316,16 +316,16 @@ program define CheckPkgname, sclass
 	args id pkgname
 	sret clear
 	if `"`pkgname'"' == "" {
-		di as err `"`id': nothing found where package name expected"'
+		di as err `"{bf:`id'}: nothing found where package name expected"'
 		exit 198
 	}
 	if length(`"`pkgname'"')==1 {
-		di as err `"`id': "`pkgname'" invalid SSC package name"'
+		di as err `"{bf:`id'}: "{bf:`pkgname'}" invalid SSC package name"'
 		exit 198
 	}
 	local pkgname = lower(`"`pkgname'"')
-	if !index("abcdefghijklmnopqrstuvwxyz_",substr(`"`pkgname'"',1,1)) {
-		di as err `"`id': "`pkgname'" invalid SSC package name"'
+	if !index("abcdefghijklmnopqrstuvwxyz_",bsubstr(`"`pkgname'"',1,1)) {
+		di as err `"{bf:`id'}: "{bf:`pkgname'}" invalid SSC package name"'
 		exit 198
 	}
 	sret local pkgname `"`pkgname'"'
@@ -335,16 +335,16 @@ program define CheckFilename, sclass
 	args id fn
 	sret clear
 	if `"`fn'"'=="" {
-		di as err `"`id': nothing found where filename expected"'
+		di as err `"{bf:`id'}: nothing found where filename expected"'
 		exit 198
 	}
 	if length(`"`fn'"')==1 {
-		di as err `"`id': "`fn'" invalid SSC filename"'
+		di as err `"{bf:`id'}: "{bf:`fn'}" invalid SSC filename"'
 		exit 198
 	}
 	local fn = lower(`"`fn'"')
-	if !index("abcdefghijklmnopqrstuvwxyz_",substr(`"`fn'"',1,1)) {
-		di as err `"`id': "`fn'" invalid SSC filename"'
+	if !index("abcdefghijklmnopqrstuvwxyz_",bsubstr(`"`fn'"',1,1)) {
+		di as err `"{bf:`id'}: "{bf:`fn'}" invalid SSC filename"'
 		exit 198
 	}
 	sret local fn `"`fn'"'
@@ -418,6 +418,6 @@ program define ParseSaving, sclass
 			exit
 		}
 	}
-	di as err "option saving() misspecified"
+	di as err "option {bf:saving()} misspecified"
 	exit 198
 end
