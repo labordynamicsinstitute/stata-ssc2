@@ -1,0 +1,16 @@
+v 1.0.0
+d 'ssc2': Allow for installation of snapshot packages. Backward compatible.
+p This is a drop-in replacement for the system-provided {cmd:ssc} command, allowing for installation of date-specific snapshots of packages.
+d It adds a new option "{cmd:date()}" that allows to pick a specific snapshot of SSC as of that date.
+d All other options are passed through.
+d
+d KW: technical
+d KW: snapshot
+d
+d Requires: Stata version any
+d
+d Distribution-Date: 20230126
+d
+d Authors: Lars Vilhuber
+d Support: On Github
+

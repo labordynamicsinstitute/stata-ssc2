@@ -1,0 +1,3 @@
+v 1.0.0
+d 'ssc2': Allow for installation of snapshot packages. Backward compatible.
+p This is a drop-in replacement for the system-provided {cmd:ssc} command, allowing for installation of date-specific snapshots of packages.
