@@ -18,12 +18,12 @@ All other options are passed through.
 
 ```stata
 * ssc2 may be installed directly from GitHub
-net install ssc2, all replace from("https://raw.githubusercontent.com/aeadataeditor/ssc-mirror-stata/master")
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror-stata/master")
 ```
 
 ```stata
 * or a specific version, e.g. v1.0.0
-net install ssc2, all replace from("https://raw.githubusercontent.com/aeadataeditor/ssc-mirror-stata/v1.0.0/")
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror-stata/v1.0.0/")
 ```
 ## Example
 
