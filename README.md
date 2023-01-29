@@ -30,14 +30,88 @@ net install ssc2, all replace from("https://raw.githubusercontent.com/labordynam
 Example run on 2023-01-29:
 
 ```stata
+// testing
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror-stata/master")
+// install a specific version
 ssc2 install cmp, date(2022-01-07)
 which cmp
 ssc uninstall cmp
+// install using standard command
 ssc install cmp
 which cmp
 ssc uninstall cmp
+// show that the redirect also works
 ssc2 install cmp
 which cmp
+```
+
+This yields
+
+```stata
+
+. do test.do 
+
+. // testing
+. net install ssc2, all replace from("https://raw.githubusercontent.com/labordy
+> namicsinstitute/ssc-mirror-stata/master")
+checking ssc2 consistency and verifying not already installed...
+installing into /home/statauser/ado/plus/...
+installation complete.
+
+. ssc2 install cmp, date(2022-01-07)
+snapshot selected: 2022-01-07
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-m
+> irror/2022-01-07/fmwww.bc.edu/repec/bocode/...
+checking cmp consistency and verifying not already installed...
+installing into /home/statauser/ado/plus/...
+installation complete.
+
+. which cmp
+/home/statauser/ado/plus/c/cmp.ado
+*! cmp 8.6.7 5 January 2022
+*! Copyright (C) 2007-22 David Roodman 
+*! Version history at bottom
+
+. ssc uninstall cmp
+
+package cmp from https://raw.githubusercontent.com/labordynamicsinstitute/ssc-m
+> irror/2022-01-07/fmwww.bc.edu/repec/bocode/c
+      'CMP': module to implement conditional (recursive) mixed process estimato
+> r
+
+(package uninstalled)
+
+. ssc install cmp
+checking cmp consistency and verifying not already installed...
+installing into /home/statauser/ado/plus/...
+installation complete.
+
+. which cmp
+/home/statauser/ado/plus/c/cmp.ado
+*! cmp 8.7.5 3 July 2023
+*! Copyright (C) 2007-23 David Roodman 
+
+. ssc uninstall cmp
+
+package cmp from http://fmwww.bc.edu/repec/bocode/c
+      'CMP': module to implement conditional (recursive) mixed process estimato
+> r
+
+(package uninstalled)
+
+. ssc2 install cmp
+installing from  http://fmwww.bc.edu/repec/bocode/...
+checking cmp consistency and verifying not already installed...
+installing into /home/statauser/ado/plus/...
+installation complete.
+
+. which cmp
+/home/statauser/ado/plus/c/cmp.ado
+*! cmp 8.7.5 3 July 2023
+*! Copyright (C) 2007-23 David Roodman 
+
+. 
+end of do-file
 ```
 
 ## Why?
