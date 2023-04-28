@@ -2,7 +2,7 @@
 
 ## Overview
 
-Allow for installation of snapshot packages. Backward compatible.
+Allow for installation of SSC snapshot packages from [https://github.com/labordynamicsinstitute/ssc-mirror/](https://github.com/labordynamicsinstitute/ssc-mirror/). Backward compatible with `ssc`.
 
 ## Description
 
@@ -18,12 +18,12 @@ All other options are passed through.
 
 ```stata
 * ssc2 may be installed directly from GitHub
-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror-stata/master")
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/master")
 ```
 
 ```stata
 * or a specific version, e.g. v1.0.0
-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror-stata/v1.0.0/")
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/v1.0.0/")
 ```
 ## Example
 
@@ -31,7 +31,7 @@ Example run on 2023-01-29:
 
 ```stata
 // testing
-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror-stata/master")
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/master")
 // install a specific version
 ssc2 install cmp, date(2022-01-07)
 which cmp
@@ -53,7 +53,7 @@ This yields
 
 . // testing
 . net install ssc2, all replace from("https://raw.githubusercontent.com/labordy
-> namicsinstitute/ssc-mirror-stata/master")
+> namicsinstitute/stata-ssc2/master")
 checking ssc2 consistency and verifying not already installed...
 installing into /home/statauser/ado/plus/...
 installation complete.
