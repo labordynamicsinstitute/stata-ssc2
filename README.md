@@ -31,7 +31,8 @@ Example run on 2023-01-29:
 
 ```stata
 // testing
-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/master")
+global github "https://raw.githubusercontent.com"
+net install ssc2, all replace from("$github/labordynamicsinstitute/stata-ssc2/master")
 // install a specific version
 ssc2 install cmp, date(2022-01-07)
 which cmp
@@ -52,7 +53,8 @@ This yields
 . do test.do 
 
 . // testing
-. net install ssc2, all replace from("https://raw.githubusercontent.com/labordy
+. global github "https://raw.githubusercontent.com"
+. net install ssc2, all replace from("$github/labordy
 > namicsinstitute/stata-ssc2/master")
 checking ssc2 consistency and verifying not already installed...
 installing into /home/statauser/ado/plus/...
