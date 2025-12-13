@@ -1,6 +1,6 @@
-*! version 1.1.7 29jan2023
+*! version 1.2.0 09dec2025
 // Based on 
-// ssc2 version 1.1.6  15oct2019
+// ssc version 1.1.6  15oct2019
 program define ssc2
 	version 7
 	gettoken cmd 0 : 0, parse(" ,")

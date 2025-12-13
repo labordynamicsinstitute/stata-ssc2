@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.2.14  09oct2020}{...}
+{* *! version 1.2.0  09dec2025}{...}
 {vieweralsosee "[R] ssc2" "mansection R ssc2"}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] ssc" "help ado update"}{...}
@@ -92,15 +92,8 @@ see {helpb ado update:[R] ado update}
 for an automated way of keeping those packages up to date.
 
 
-{marker linkspdf}{...}
-{title:Links to PDF documentation}
-
-        {mansection R ssc2Quickstart:Quick start}
-
-        {mansection R ssc2Remarksandexamples:Remarks and examples}
-
 {pstd}
-The above sections are not included in this help file.
+All other options from {cmd: ssc} are passed through to that command.
 
 
 {marker overview}{...}
@@ -136,35 +129,15 @@ The above sections are not included in this help file.
     alternative to {opt ssc2 install} ...{cmd:, all}.  {opt ssc2 cp} is a
     synonym for {opt ssc2 copy}.
 
+{opt ssc2 info} provides information on the currently configured SSC snapshot.
 
-{marker options_ssc2_new}{...}
-{title:Options for use with ssc2 new}
-
-{phang}
-{cmd:saving(}{it:{help filename}}[{cmd:, replace}]{cmd:)} specifies that the
-    "what's new" summary be saved in {it:filename}.  If {it:filename} is
-    specified without a suffix, {it:filename}{cmd:.smcl} is assumed.  If
-    {opt saving()} is not specified, {cmd:saving(ssc2_result.smcl)} is assumed.
+{marker option_global_option}{...}
+{title:Global option for use with all of the following subcommands}
 
 {phang}
-{opt type} specifies that the "what's new" results be displayed in the
-    Results window rather than in the Viewer.
-
-
-{marker options_ssc2_hot}{...}
-{title:Options for use with ssc2 hot}
-
-{phang}
-{cmd:n(}{it:#}{cmd:)} 
-    specifies the number of packages to list; {cmd:n(10)} is the default.
-    Specify {cmd:n(.)} to list all packages in order of popularity.
-
-{phang}
-{cmd:author(}{it:name}{cmd:)} 
-     lists the 10 most popular packages by the specified author.
-     If {cmd:n(}{it:#}{cmd:)} is also specified, the top {it:#} 
-     packages are listed.
-
+{cmd:date(}{it:{help date}}{cmd:)} specifies the particular date-based snapshot
+     to use for {cmd:install}, {cmd:describe}, {cmd:type}, and {cmd:copy}. It 
+     draws from the SSC mirror specified.  
 
 {marker option_ssc2_describe}{...}
 {title:Option for use with ssc2 describe}
@@ -269,12 +242,16 @@ that they have written available to others via the web.  The files that
 comprise a new feature are called a package, and a package usually consists of
 one or more ado-files and help files.  The {helpb net} command makes it
 reasonably easy to install and uninstall packages regardless of where
-they are on the web.  One site, the ssc2, has become particularly
-popular as a repository for additions to Stata.  Command {cmd:ssc2} is an
-easier to use version of {cmd:net} designed especially for the ssc2.
+they are on the web.  One site, the SSC, has become particularly
+popular as a repository for additions to Stata.  Command {cmd:ssc} is an
+easier to use version of {cmd:net} designed especially for the SSC. 
+This command ({cmd:ssc2}) extends that ease to working with a date-based
+snapshot of SSC. The key option is {cmd:date()}, which can be added to all the key
+commands below. Without specifying {cmd:date()}, {cmd:ssc2} should behave just as 
+{cmd:ssc}.
 
 {pstd}
-Many packages are available at the ssc2.  Packages are named, such as
+Many packages are available at the SSC.  Packages are named, such as
 {hi:oaxaca}, {hi:estout}, or {hi:egenmore}.  At ssc2, capitalization is not
 significant, so {hi:Oaxaca}, {hi:ESTOUT}, and {hi:EGENmore} are
 ways of writing the same package names.
