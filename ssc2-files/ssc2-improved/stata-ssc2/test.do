@@ -5,11 +5,23 @@
 clear all
 version 14
 
-// install ssc2 itself from the repo under test
-// NOTE: adjust the branch (main / your fork) as needed
-global github "https://raw.githubusercontent.com"
+// ---- 0. install the ssc2 under test -------------------------------------
+// Default: install from THIS working copy. Run test.do from the repo root
+// (in batch mode, `stata -b do test.do` from the repo root does this).
+// Do NOT install from the GitHub main branch: that still hosts the old
+// released version, not the code you are testing.
 capture ado uninstall ssc2
-net install ssc2, all replace from("$github/labordynamicsinstitute/stata-ssc2/main")
+discard                          // flush any old ssc2 program from memory
+net install ssc2, all replace from("`c(pwd)'")
+// alternative: install from your fork/branch on GitHub, e.g.
+// net install ssc2, all replace from("https://raw.githubusercontent.com/<youruser>/stata-ssc2/improve-ssc2")
+discard
+
+// canary: -ssc2 snapshots- exists only in the rewritten version.
+// If this fails, the OLD released ssc2 is installed -- stop and fix that
+// before trusting any result below.
+capture noisily ssc2 snapshots
+assert _rc==0
 
 // ---- 1. dated install --------------------------------------------------
 capture ssc uninstall cmp
