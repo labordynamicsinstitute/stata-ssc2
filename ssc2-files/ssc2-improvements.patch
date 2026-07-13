@@ -1,0 +1,2782 @@
+diff --git a/NOTES-for-review.md b/NOTES-for-review.md
+new file mode 100644
+index 0000000..2990386
+--- /dev/null
++++ b/NOTES-for-review.md
+@@ -0,0 +1,71 @@
++# ssc2 rewrite — notes for review (2026-07-08)
++
++## What changed and why
++
++1. **Fixed broken delegation.** The old code called `sscwhatsnew`,
++   `ssc_whatshot`, and `sscuninstall` — internal subroutines of
++   StataCorp's `ssc.ado`. Those are only in memory after `ssc` itself has
++   been run in the session, and their names are undocumented internals
++   that can change between Stata releases. `ssc2 new|hot|uninstall` now
++   call the public `ssc` command instead.
++2. **Full delegation when no snapshot is requested.** `describe`,
++   `install`, `copy`, `type` now delegate to `ssc` whenever neither
++   `date()` nor `from()` is given. ssc2 is a strict superset of ssc and
++   inherits upstream behavior/fixes for free (e.g., `ssc describe,
++   saving()` and `ssc new` options work untouched).
++3. **`from()` option** (per issue #2), defaulting to the LDI mirror.
++   Users can point at their own clone with the same layout.
++4. **`date(latest)`** maps to the mirror's `releases` branch (verified:
++   it carries the current tree; `main` does not).
++5. **Fixed `copy` and `type`.** They referenced globals
++   (`$ssc2prefix`, `$ssc2url`) that were never defined anywhere — both
++   subcommands could not have worked. They now build the snapshot URL
++   correctly and accept `date()`/`from()`.
++6. **No more globals.** `$repecadr`/`$SSCMIRRORURL` polluted the user's
++   global namespace; all URL logic now lives in `ResolveSnapshot`.
++7. **Real date validation.** `YYYY-MM-DD` parsed with `date(...,"YMD")`
++   (so `2022-1-7` normalizes to `2022-01-07`), future dates and dates
++   before the first snapshot (2017-08-10) rejected, note printed for the
++   sparse pre-2021-12-23 era, and a targeted error (with a link to the
++   tag list) when `net from` fails on a snapshot URL.
++8. **`ssc2 snapshots`** (informational) and a stub for `ssc2 versions`.
++9. **Metadata fixes.** `stata.toc` had no valid `p pkgname` line (its `p`
++   line would be parsed as a package named "This"); `test.do` pointed at
++   a nonexistent repo path (`ssc-mirror-stata/master`); README install
++   URL said `master` but the branch is `main`. All fixed; `Distribution-
++   Date` bumped; version set to 2.0.0-draft pending testing.
++10. **`tools/make_snapshot_index.py`** generates `snapshots.csv` from the
++    mirror's tags (1,659 dates as of today) — groundwork for `ssc2
++    versions` and for a CI-refreshed, Stata-fetchable index.
++
++## Verified against the live mirror (2026-07-08)
++
++- snapshots are git *tags* `YYYY-MM-DD`; daily since 2021-12-23; also
++  2017-08-10, 2021-04-15, 2021-08-10; known gap 2026-03-08..-10 (ERRATA)
++- every URL pattern the code builds returns HTTP 200 on the mirror
++  (per-letter `stata.toc`, `.pkg`, `.ado`, `releases` branch), and the
++  error paths return 404 as expected
++
++## NOT yet done / needs a decision
++
++- **Not tested in Stata.** This was developed without a Stata license in
++  the loop; test.do is ready to run. Treat 2.0.0-draft as untested.
++- **Rename to `ssctm`** (issue #1): trivially done with a rename +
++  search/replace once decided; held off pending confirmation.
++- **Default target when no date() is given** — the task email says
++  "fall back to ssc" (implemented); issue #2's "default to the snapshot
++  URL" could be read as defaulting to the mirror. Confirm intent.
++- **Issue #2's "copy the system-level SSC command"**: StataCorp's
++  ssc.ado (and its help file, from which sthlp/ssc2.sthlp derives) is
++  copyrighted material; delegation avoids copying code, but the help
++  file's provenance is worth cleaning up before a Stata Journal
++  submission.
++- **Web page tool (TBD)**: options — (a) Quarto site in docs/ rendered
++  by GitHub Actions to Pages (fits the LDI toolchain, easy to include
++  Stata output); (b) plain GitHub Pages from docs/ markdown (zero
++  tooling); (c) Stata's `log html` / a small SMCL→HTML converter to
++  publish the help file itself. Recommend (a); awaiting the "TBD tool"
++  decision.
++- Minimum Stata version: set to 14 on the reasoning that the mirror is
++  https-only and older Statas can't fetch https; the true floor should
++  be confirmed empirically.
+diff --git a/README.md b/README.md
+index 14e05ab..1de60ba 100644
+--- a/README.md
++++ b/README.md
+@@ -2,13 +2,28 @@
+ 
+ ## Overview
+ 
+-Allow for installation of SSC snapshot packages from [https://github.com/labordynamicsinstitute/ssc-mirror/](https://github.com/labordynamicsinstitute/ssc-mirror/). Backward compatible with `ssc`.
++Install Stata packages from **date-based snapshots** of the SSC archive,
++mirrored at <https://github.com/labordynamicsinstitute/ssc-mirror>.
++Backward compatible with `ssc`.
+ 
+ ## Description
+ 
+-This is a drop-in replacement for the system-provided {cmd:ssc} command, allowing for installation of date-specific snapshots of packages.
+-It adds a new option "{cmd:date()}" that allows to pick a specific snapshot of SSC as of that date.
+-All other options are passed through.
++`ssc2` is a drop-in replacement for the system-provided `ssc` command.
++It adds:
++
++- **`date()`** — install/describe/type/copy a package *as of a given date*
++  (`YYYY-MM-DD`), or `date(latest)` for the most recent mirrored state.
++- **`from()`** — point at an alternative clone of the snapshot mirror.
++
++Where nothing snapshot-specific is requested, `ssc2` delegates to the
++official `ssc` command (which ships with every Stata installation), so it
++behaves as a strict superset of `ssc` and automatically inherits upstream
++behavior. The subcommands `new`, `hot`, and `uninstall` are always
++delegated.
++
++Snapshots are date-stamped git tags in the mirror repository. Daily
++snapshots exist from **2021-12-23** onward; three earlier snapshots exist
++(2017-08-10, 2021-04-15, 2021-08-10). Type `ssc2 snapshots` for details.
+ 
+ ### Main programs
+ 
+@@ -18,108 +33,44 @@ All other options are passed through.
+ 
+ ```stata
+ * ssc2 may be installed directly from GitHub
+-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/master")
++net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/main")
+ ```
+ 
+ ```stata
+-* or a specific version, e.g. v1.0.0
++* or a specific release, e.g. v1.0.0
+ net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/v1.0.0/")
+ ```
+-## Example
+ 
+-Example run on 2023-01-29:
++## Example
+ 
+ ```stata
+-// testing
+-global github "https://raw.githubusercontent.com"
+-net install ssc2, all replace from("$github/labordynamicsinstitute/stata-ssc2/master")
+-// install a specific version
++// install the package version that was current on 2022-01-07
+ ssc2 install cmp, date(2022-01-07)
+-which cmp
+-ssc uninstall cmp
+-// install using standard command
+-ssc install cmp
+-which cmp
+-ssc uninstall cmp
+-// show that the redirect also works
+-ssc2 install cmp
+-which cmp
+-```
++which cmp        // -> cmp 8.6.7, 5 January 2022
+ 
+-This yields
++// without date(), ssc2 delegates to the official ssc command
++ssc2 install cmp, replace
++which cmp        // -> current SSC version
+ 
+-```stata
++// most recent mirrored state
++ssc2 install cmp, date(latest) replace
+ 
+-. do test.do 
+-
+-. // testing
+-. global github "https://raw.githubusercontent.com"
+-. net install ssc2, all replace from("$github/labordy
+-> namicsinstitute/stata-ssc2/master")
+-checking ssc2 consistency and verifying not already installed...
+-installing into /home/statauser/ado/plus/...
+-installation complete.
+-
+-. ssc2 install cmp, date(2022-01-07)
+-snapshot selected: 2022-01-07
+-installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-m
+-> irror/2022-01-07/fmwww.bc.edu/repec/bocode/...
+-checking cmp consistency and verifying not already installed...
+-installing into /home/statauser/ado/plus/...
+-installation complete.
+-
+-. which cmp
+-/home/statauser/ado/plus/c/cmp.ado
+-*! cmp 8.6.7 5 January 2022
+-*! Copyright (C) 2007-22 David Roodman 
+-*! Version history at bottom
+-
+-. ssc uninstall cmp
+-
+-package cmp from https://raw.githubusercontent.com/labordynamicsinstitute/ssc-m
+-> irror/2022-01-07/fmwww.bc.edu/repec/bocode/c
+-      'CMP': module to implement conditional (recursive) mixed process estimato
+-> r
+-
+-(package uninstalled)
+-
+-. ssc install cmp
+-checking cmp consistency and verifying not already installed...
+-installing into /home/statauser/ado/plus/...
+-installation complete.
+-
+-. which cmp
+-/home/statauser/ado/plus/c/cmp.ado
+-*! cmp 8.7.5 3 July 2023
+-*! Copyright (C) 2007-23 David Roodman 
+-
+-. ssc uninstall cmp
+-
+-package cmp from http://fmwww.bc.edu/repec/bocode/c
+-      'CMP': module to implement conditional (recursive) mixed process estimato
+-> r
+-
+-(package uninstalled)
+-
+-. ssc2 install cmp
+-installing from  http://fmwww.bc.edu/repec/bocode/...
+-checking cmp consistency and verifying not already installed...
+-installing into /home/statauser/ado/plus/...
+-installation complete.
+-
+-. which cmp
+-/home/statauser/ado/plus/c/cmp.ado
+-*! cmp 8.7.5 3 July 2023
+-*! Copyright (C) 2007-23 David Roodman 
+-
+-. 
+-end of do-file
++// everything else passes through to ssc
++ssc2 hot, n(5)
+ ```
+ 
+ ## Why?
+ 
+-Inspired by the R `snapshot` functionality.
++Reproducibility. Inspired by the R ecosystem's snapshot functionality
++(MRAN/checkpoint, Posit Package Manager): a replication package can pin
++the SSC package versions that were current when the analysis was run.
++
++## Testing
++
++Run [`test.do`](test.do) in Stata. It exercises dated installs,
++delegation to `ssc`, `date(latest)`, `copy`/`type` with dates, and error
++handling.
+ 
+ ## Current Author(s)
+ 
+- - Lars Vilhuber
++- Lars Vilhuber
+diff --git a/ado/ssc2.ado b/ado/ssc2.ado
+index 0ea4451..7a9c520 100644
+--- a/ado/ssc2.ado
++++ b/ado/ssc2.ado
+@@ -1,122 +1,174 @@
+-*! version 1.1.7 29jan2023
+-// Based on 
+-// ssc2 version 1.1.6  15oct2019
++*! version 2.0.0-draft 08jul2026  L. Vilhuber and contributors
++*! Install Stata packages from date-based snapshots of the SSC archive,
++*! mirrored at https://github.com/labordynamicsinstitute/ssc-mirror
++*!
++*! Design:
++*!   - Subcommands with no snapshot-specific behavior (new/whatsnew,
++*!     hot/whatshot, uninstall) are delegated verbatim to the official
++*!     -ssc- command shipped with Stata.
++*!   - describe/install/copy/type are also delegated to -ssc- whenever
++*!     neither date() nor from() is specified, so that ssc2 remains a
++*!     strict superset of ssc and automatically inherits upstream fixes.
++*!   - With date() (or from()), the mirror is used instead.
++*!
++*! NOTE: version 14 is declared because the mirror is served over https
++*! (raw.githubusercontent.com); older Statas cannot fetch https URLs.
++*! The exact minimum version should be confirmed by testing.
++
+ program define ssc2
+-	version 7
++	version 14
+ 	gettoken cmd 0 : 0, parse(" ,")
+ 
+-	di as txt "" _c		/* work around for net display problem */
++	di as txt "" _c		/* work-around for net display problem */
+ 
+ 	if `"`cmd'"'=="" {
+ 		di as txt "ssc2 commands are"
+-		di as txt "    {cmd:ssc2 new}"
+-		di as txt "    {cmd:ssc2 hot}"
++		di as txt "    {cmd:ssc2 new}        (delegated to {helpb ssc})"
++		di as txt "    {cmd:ssc2 hot}        (delegated to {helpb ssc})"
+ 		di
+-		di as txt "    {cmd:ssc2 describe}  {it:pkgname}"
+-		di as txt "    {cmd:ssc2 describe}  {it:letter}"
++		di as txt "    {cmd:ssc2 describe}  {it:pkgname} [, date()]"
++		di as txt "    {cmd:ssc2 describe}  {it:letter}  [, date()]"
+ 		di
+-		di as txt "    {cmd:ssc2 install}   {it:pkgname}"
++		di as txt "    {cmd:ssc2 install}   {it:pkgname} [, date()]"
+ 		di as txt "    {cmd:ssc2 uninstall} {it:pkgname}"
+ 		di
+-		di as txt "    {cmd:ssc2 type}      {it:filename}  (less used)"
+-		di as txt "    {cmd:ssc2 copy}      {it:filename}  (less used)"
+-		di as txt "see help {help ssc2##|_new:ssc2}"
++		di as txt "    {cmd:ssc2 type}      {it:filename} [, date()]  (less used)"
++		di as txt "    {cmd:ssc2 copy}      {it:filename} [, date()]  (less used)"
++		di
++		di as txt "    {cmd:ssc2 snapshots}            (information on available snapshots)"
++		di as txt "see help {help ssc2}"
+ 		exit 198
+ 	}
+ 
+-
+ 	local l = length(`"`cmd'"')
+-	if `"`cmd'"' == bsubstr("whatsnew",1,max(4,`l')) {
+-		// unchanged
+-		sscwhatsnew `0'
++
++	* ---- pure pass-throughs to the official ssc command ----------------
++	* The official -ssc- is present in every Stata installation; calling
++	* the top-level command (rather than its internal subroutines, which
++	* are undocumented and only in memory once ssc.ado has been loaded)
++	* is the only reliable way to delegate.
++	if `"`cmd'"'=="new" | `"`cmd'"'==substr("whatsnew",1,max(4,`l')) {
++		ssc whatsnew `0'
+ 		exit
+ 	}
+-	if `"`cmd'"' == "new" { 
+-		// unchanged
+-		sscwhatsnew `0'
++	if `"`cmd'"'=="hot" | `"`cmd'"'==substr("whatshot",1,max(6,`l')) {
++		ssc hot `0'
+ 		exit
+ 	}
+-	if `"`cmd'"' == bsubstr("whatshot",1,max(6,`l')) {
+-		// unchanged
+-		ssc_whatshot `0'
++	if `"`cmd'"'=="uninstall" {
++		ssc uninstall `0'
+ 		exit
+ 	}
+-	if `"`cmd'"' == "hot" { 
+-		// unchanged
+-		ssc_whatshot `0'
++
++	* ---- subcommands that gain date()/from() ---------------------------
++	if `"`cmd'"'==substr("describe",1,max(1,`l')) {
++		ssc2_describe `0'
+ 		exit
+ 	}
+-	if `"`cmd'"' == bsubstr("describe",1,max(1,`l')) {
+-		ssc2describe `0'
++	if `"`cmd'"'==substr("install",1,max(4,`l')) {
++		ssc2_install `0'
+ 		exit
+ 	}
+-	if `"`cmd'"' == bsubstr("install",1,max(4,`l')) {
+-		ssc2install `0'
++	if `"`cmd'"'=="copy" | `"`cmd'"'=="cp" {
++		ssc2_copy `0'
+ 		exit
+ 	}
+-	if `"`cmd'"' == "uninstall" {
+-		// unchanged
+-		sscuninstall `0'
++	if `"`cmd'"'=="type" | `"`cmd'"'=="cat" {
++		ssc2_type `0'
+ 		exit
+ 	}
+-	if `"`cmd'"'=="copy" | `"`cmd'"'=="cp" {
+-		// unchanged?
+-		ssc2copy `0'
++
++	* ---- new informational / future subcommands ------------------------
++	if `"`cmd'"'=="snapshots" {
++		ssc2_snapshots `0'
+ 		exit
+ 	}
+-	if `"`cmd'"'=="type" | `"`cmd'"'=="cat" {
+-		// unchanged
+-		ssc2type `0'
+-		exit
++	if `"`cmd'"'=="versions" {
++		di as err "{bf:ssc2 versions} is not yet implemented."
++		di as err "It will list the versions of a package available across snapshots."
++		di as err `"Meanwhile, browse {browse "https://github.com/labordynamicsinstitute/ssc-mirror/tags":the snapshot list}."'
++		exit 198
+ 	}
++
+ 	di as err `"{bf:ssc2 `cmd'}: invalid subcommand"'
+ 	exit 198
+ end
+ 
+-// define the base url if not using options
+-global repecadr "fmwww.bc.edu/repec/bocode/"
+-global SSCMIRRORURL "raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror"
+ 
++* =======================================================================
++* ResolveSnapshot: turn date()/from() into a mirror URL
++*   returns r(ref)  : git ref (tag YYYY-MM-DD, or "releases" for latest)
++*   returns r(url)  : base URL ending in .../fmwww.bc.edu/repec/bocode/
++*   returns r(shown): human-readable label for messages
++* =======================================================================
++program define ResolveSnapshot, rclass
++	syntax [, DATE(string) FROM(string)]
+ 
+-program define ProcSSCDate, rclass
+-	local datetoken `"`0'"'
+-	gettoken date dateurl : datetoken, parse(" ,")
+-	gettoken nothing dateurl : datetoken, parse(" ,")
++	* default mirror; from() lets users point at their own clone with the
++	* same layout (a repo whose refs contain fmwww.bc.edu/repec/bocode/)
++	if `"`from'"'=="" {
++		local from "https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror"
++	}
++	* strip one trailing slash, if any
++	if substr(`"`from'"', -1, 1)=="/" {
++		local from = substr(`"`from'"', 1, length(`"`from'"')-1)
++	}
+ 
+-	if "`date'"=="" {
+-		InvalidDateURL `0'
++	if `"`date'"'=="" | lower(`"`date'"')=="latest" {
++		* the mirror keeps its most recent state on the "releases" branch
++		local ref   "releases"
++		local shown "latest (releases branch)"
+ 	}
+-	local today  : display %tdCY-N-D date(c(current_date), "DMY")
+-	
+-	if "`today'" <  "`date'" {
+-		InvalidDateURL `0' `"Date is in the future!"'
++	else {
++		* accept YYYY-MM-DD (also normalizes e.g. 2022-1-7 -> 2022-01-07)
++		local d = date(`"`date'"', "YMD")
++		if `d' >= . {
++			di as err `"option {bf:date(`date')}: invalid date"'
++			di as err "  specify a date as YYYY-MM-DD, or {bf:date(latest)}"
++			exit 198
++		}
++		local ref : display %tdCY-N-D `d'
++		local ref = trim("`ref'")
++		local today = date(c(current_date), "DMY")
++		if `d' > `today' {
++			di as err `"option {bf:date(`date')}: date is in the future"'
++			exit 198
++		}
++		if `d' < date("2017-08-10", "YMD") {
++			di as err `"option {bf:date(`date')}: no snapshots exist before 2017-08-10"'
++			exit 198
++		}
++		if `d' < date("2021-12-23", "YMD") {
++			di as txt "note: daily snapshots begin 2021-12-23; before that only"
++			di as txt "      2017-08-10, 2021-04-15, and 2021-08-10 exist."
++		}
++		local shown "`ref'"
+ 	}
+-	ret local ssc2date "`date'"
+-	ret local ssc2url "https://${SSCMIRRORURL}/`date'/${repecadr}"
+ 
+-	// This should presumably fetch the list of valid dates, and validate against that
+-	// TBD
++	return local ref   `"`ref'"'
++	return local shown `"`shown'"'
++	return local url   `"`from'/`ref'/fmwww.bc.edu/repec/bocode/"'
+ end
+ 
+ 
+-program define InvalidDateURL
+-    args date errormsg
+-	di as err `"option {bf:date(`date')}:  invalid date"'
+-	di as err `"  Date must be valid from https://${SSCMIRRORURL}/tags"'
+-	if "`errormsg'" != "" {
+-		di as err `"  `errormsg'"'
+-	}
+-	exit 198
++* Helpful error when -net from- on a snapshot URL fails
++program define SnapshotFromError
++	args url ref rc
++	di as err `"could not read package index at"'
++	di as err `"    `url'"'
++	di as err "possible reasons:"
++	di as err `"  - no snapshot exists for {bf:`ref'} (see {browse "https://github.com/labordynamicsinstitute/ssc-mirror/tags":the list of snapshot dates}; note a gap 2026-03-08 to 2026-03-10)"'
++	di as err "  - a network problem, or the mirror host is unreachable"
++	exit `rc'
+ end
+ 
+ 
+-
+-program define ssc2describe
+-	* ssc2 describe <package>|<ltr> [, saving(<filename>[,replace]) date(<date string>)]
++program define ssc2_describe
++	* ssc2 describe <package>|<ltr> [, saving(fn[,replace]) date() from()]
+ 	gettoken pkgname 0 : 0, parse(" ,")
+ 	if length(`"`pkgname'"')==1 {
+ 		local pkgname = lower(`"`pkgname'"')
+-		if !index("abcdefghijklmnopqrstuvwxyz_",`"`pkgname'"') {
++		if !index("abcdefghijklmnopqrstuvwxyz_", `"`pkgname'"') {
+ 			di as err "{bf:ssc2 describe}: letter must be a-z or _"
+ 			exit 198
+ 		}
+@@ -125,107 +177,134 @@ program define ssc2describe
+ 		CheckPkgname "ssc2 describe" `"`pkgname'"'
+ 		local pkgname `"`s(pkgname)'"'
+ 	}
+-	syntax [, SAVING(string asis) DATE(string asis)]
+-	if `"`date'"' != "" {
+-		ProcSSCDate `date'
+-		local ssc2date `"`r(ssc2date)'"'
+-		local ssc2url  `"`r(ssc2url)'"'
+-	}
+-	else {
+-		local ssc2url "http://${repecadr}"
++	syntax [, SAVING(string asis) DATE(string) FROM(string)]
++
++	* no snapshot requested: delegate fully to official ssc
++	if `"`date'`from'"'=="" {
++		if `"`saving'"'!="" {
++			ssc describe `pkgname', saving(`saving')
++		}
++		else {
++			ssc describe `pkgname'
++		}
++		exit
+ 	}
+-	LogOutput `"`saving'"' ssc2describe_u `"`pkgname'"' `"`ssc2url'"' `"`ssc2date'"'
++
++	ResolveSnapshot, date(`date') from(`from')
++	local ref   `"`r(ref)'"'
++	local shown `"`r(shown)'"'
++	local url   `"`r(url)'"'
++
++	LogOutput `"`saving'"' ssc2_describe_u `"`pkgname'"' `"`url'"' `"`ref'"' `"`shown'"'
+ 	if `"`s(loggedfn)'"' != "" {
+ 		di as txt `"(output saved in `s(loggedfn)')"'
+ 	}
+ end
+ 
+-program define ssc2describe_u
+-	args pkgname ssc2url ssc2date
+-	local ltr = bsubstr(`"`pkgname'"',1,1)
++program define ssc2_describe_u
++	args pkgname url ref shown
++	local ltr = substr(`"`pkgname'"', 1, 1)
+ 	if length(`"`pkgname'"')==1 {
+-		net from `ssc2url'`ltr'
++		capture noisily net from `url'`ltr'
++		if _rc {
++			SnapshotFromError `"`url'`ltr'"' `"`ref'"' `=_rc'
++		}
+ 		di as txt /*
+-*/ "(type {cmd:ssc2 describe} {it:pkgname} for more information on {it:pkgname})"
++*/ "(type {cmd:ssc2 describe} {it:pkgname}{cmd:, date(`ref')} for more information on {it:pkgname})"
+ 	}
+ 	else {
+-		qui net from `ssc2url'`ltr'
++		capture quietly net from `url'`ltr'
++		if _rc {
++			SnapshotFromError `"`url'`ltr'"' `"`ref'"' `=_rc'
++		}
+ 		capture net describe `pkgname'
+ 		local rc = _rc
+-		if _rc==601 | _rc==661  {
++		if `rc'==601 | `rc'==661 {
+ 			di as err /*
+-*/ `"{bf:ssc2 describe}: "{bf:`pkgname'}" not found at SSC, type {stata search `pkgname'}"'
++*/ `"{bf:ssc2 describe}: "{bf:`pkgname'}" not found in snapshot `shown'"'
+ 			di as err /*
+-*/ "(To find all packages at SSC that start with `ltr', type {stata ssc2 describe `ltr'})"
++*/ "(To find all packages in this snapshot that start with `ltr', type {stata ssc2 describe `ltr', date(`ref')})"
++			exit `rc'
+ 		}
+-		if _rc==0 {
++		if `rc'==0 {
+ 			net describe `pkgname'
+ 			di as txt /*
+-			*/ "(type {stata ssc2 install `pkgname', date(`ssc2date')} to install)"
++*/ "(type {stata ssc2 install `pkgname', date(`ref')} to install)"
+ 		}
+ 		exit `rc'
+ 	}
+ end
+ 
+ 
+-program define ssc2install
+-	* ssc2 install <package> [, <net_install_options> DATE(string asis)]
++program define ssc2_install
++	* ssc2 install <package> [, all replace date() from() <net_install opts>]
+ 	gettoken pkgname 0 : 0, parse(" ,")
+ 	CheckPkgname "ssc2 install" `"`pkgname'"'
+ 	local pkgname `"`s(pkgname)'"'
+-	syntax [, ALL REPLACE DATE(string asis)]
+-	local ltr = bsubstr("`pkgname'",1,1)
+-	if `"`date'"' != "" {
+-		ProcSSCDate `date'
+-		local ssc2date `"`r(ssc2date)'"'
+-		local ssc2url  `"`r(ssc2url)'"'
+-	}
+-	else {
+-		local ssc2url "http://${repecadr}"
++	syntax [, ALL REPLACE DATE(string) FROM(string) *]
++
++	* no snapshot requested: delegate fully to official ssc
++	if `"`date'`from'"'=="" {
++		ssc install `pkgname', `all' `replace' `options'
++		exit
+ 	}
+ 
+-	qui net from `ssc2url'`ltr'
++	ResolveSnapshot, date(`date') from(`from')
++	local ref   `"`r(ref)'"'
++	local shown `"`r(shown)'"'
++	local url   `"`r(url)'"'
++	local ltr = substr("`pkgname'", 1, 1)
++
++	capture quietly net from `url'`ltr'
++	if _rc {
++		SnapshotFromError `"`url'`ltr'"' `"`ref'"' `=_rc'
++	}
+ 	capture net describe `pkgname'
+ 	local rc = _rc
+-	if _rc==601 | _rc==661 {
++	if `rc'==601 | `rc'==661 {
+ 		di as err /*
+-*/ `"{bf:ssc2 install}: "{bf:`pkgname'}" not found at SSC"'
+-        di as err `" at `ssc2url'"'
+-        di as err `" type {stata search `pkgname'}"'
++*/ `"{bf:ssc2 install}: "{bf:`pkgname'}" not found in snapshot `shown'"'
++		di as err `"  at `url'"'
+ 		di as err /*
+-*/ "(To find all packages at SSC that start with `ltr', type {stata ssc2 describe `ltr'})"
++*/ "(To find all packages in this snapshot that start with `ltr', type {stata ssc2 describe `ltr', date(`ref')})"
+ 		exit `rc'
+ 	}
+-	if _rc {
++	if `rc' {
+ 		error `rc'
+ 	}
+ 
+-	if "`ssc2date'" != "" {
+-		di as result `"snapshot selected: `ssc2date'"'
+-	}
+-	di as result `"installing from  `ssc2url'..."'
+-	capture noi net install `pkgname', `all' `replace'
++	di as result `"snapshot selected: `shown'"'
++	di as result `"installing from  `url'..."'
++	capture noisily net install `pkgname', `all' `replace' `options'
+ 	local rc = _rc
+-	if _rc==601 | _rc==661 {
++	if `rc'==601 | `rc'==661 {
+ 		di
+ 		di as err /*
+-*/ `"{p}{bf:ssc2 install}: apparent error in package file for {bf:`pkgname'}; please notify {browse "mailto:repec@repec.org":repec@repec.org}, providing package name{p_end}"'
++*/ `"{p}{bf:ssc2 install}: apparent error in the package file for {bf:`pkgname'} in this snapshot; please open an issue at {browse "https://github.com/labordynamicsinstitute/ssc-mirror/issues":the mirror repository}, providing the package name and date{p_end}"'
+ 	}
+ 	exit `rc'
+ end
+ 
+ 
+-program define ssc2copy
+-	* ssc2 copy <filename> [, plus personal <copy_options>]
+-	*
++program define ssc2_copy
++	* ssc2 copy <filename> [, plus personal <copy_options> date() from()]
+ 	* backwards compatibility: sjplus and stbplus are synonyms for plus
+-
+ 	gettoken fn 0 : 0, parse(" ,")
+ 	CheckFilename "ssc2 copy" `"`fn'"'
+ 	local fn `"`s(fn)'"'
+-	syntax [, PUBlic BINary REPLACE STBplus SJplus PLus Personal]
++	syntax [, PUBlic BINary REPLACE STBplus SJplus PLus Personal ///
++	          DATE(string) FROM(string)]
+ 
+-	local text = cond("`binary'"=="","text","")
++	* no snapshot requested: delegate fully to official ssc
++	if `"`date'`from'"'=="" {
++		ssc copy `fn', `public' `binary' `replace' `stbplus' `sjplus' `plus' `personal'
++		exit
++	}
++
++	ResolveSnapshot, date(`date') from(`from')
++	local url `"`r(url)'"'
++
++	local text = cond("`binary'"=="", "text", "")
+ 
+ 	local op "stbplus"
+ 	if "`sjplus'" != "" {
+@@ -240,10 +319,9 @@ program define ssc2copy
+ 		di as err "options {bf:`op'} and {bf:personal} may not be specified together"
+ 		exit 198
+ 	}
+-	local ltr = bsubstr(`"`fn'"',1,1)
++	local ltr = substr(`"`fn'"', 1, 1)
+ 
+-
+-	if "`stbplus'"!="" {
++	if "`stbplus'" != "" {
+ 		local dir : sysdir STBPLUS
+ 		local dirsep : dirsep
+ 		local dir `"`dir'`ltr'`dirsep'"'
+@@ -258,38 +336,63 @@ program define ssc2copy
+ 		local dfn `"`fn'"'
+ 	}
+ 
+-	capture copy `"https://${ssc2prefix}${ssc2url}`ltr'/`fn'"' /*
+-		*/ `"`dfn'"' , `public' `text' `replace'
++	capture copy `"`url'`ltr'/`fn'"' `"`dfn'"', `public' `text' `replace'
+ 	local rc = _rc
+-	if _rc==601 | _rc==661 {
++	if `rc'==601 | `rc'==661 {
+ 		di as err /*
+-	*/ `"{bf:ssc2 copy}: "{bf:`fn'}" not found at ssc2, type {stata search `fn'}"'
++*/ `"{bf:ssc2 copy}: "{bf:`fn'}" not found in snapshot at `url'`ltr'/"'
+ 		exit `rc'
+ 	}
+-	if _rc {
++	if `rc' {
+ 		error `rc'
+ 	}
+ 	di as txt "(file `fn' copied to `dir')"
+ end
+ 
+ 
+-program define ssc2type
++program define ssc2_type
+ 	gettoken fn 0 : 0, parse(" ,")
+-	syntax [, ASIS]
++	syntax [, ASIS DATE(string) FROM(string)]
+ 	CheckFilename "ssc2 type" `"`fn'"'
+ 	local fn `"`s(fn)'"'
+-	local ltr = bsubstr(`"`fn'"',1,1)
+-	capture type `"https://${ssc2prefix}${ssc2url}`ltr'/`fn'"'
++
++	* no snapshot requested: delegate fully to official ssc
++	if `"`date'`from'"'=="" {
++		ssc type `fn', `asis'
++		exit
++	}
++
++	ResolveSnapshot, date(`date') from(`from')
++	local url `"`r(url)'"'
++	local ltr = substr(`"`fn'"', 1, 1)
++
++	capture type `"`url'`ltr'/`fn'"'
+ 	local rc = _rc
+-	if _rc==601 | _rc==661 {
++	if `rc'==601 | `rc'==661 {
+ 		di as err /*
+-	*/ `"{bf:ssc2 type}: "{bf:`fn'}" not found at ssc2, type {stata search `fn'}"'
++*/ `"{bf:ssc2 type}: "{bf:`fn'}" not found in snapshot at `url'`ltr'/"'
+ 		exit `rc'
+ 	}
+-	if _rc {
++	if `rc' {
+ 		error `rc'
+ 	}
+-	type `"https://${ssc2prefix}${ssc2url}`ltr'/`fn'"', `asis'
++	type `"`url'`ltr'/`fn'"', `asis'
++end
++
++
++program define ssc2_snapshots
++	* informational for now; a machine-readable index is planned
++	syntax [, FROM(string)]
++	di as txt "Snapshots of the SSC archive are stored as date-stamped git tags"
++	di as txt "(YYYY-MM-DD) in the mirror repository:"
++	di as txt `"    {browse "https://github.com/labordynamicsinstitute/ssc-mirror/tags"}"'
++	di
++	di as txt "  - daily snapshots exist from {bf:2021-12-23} onward"
++	di as txt "    (known gap: 2026-03-08 to 2026-03-10)"
++	di as txt "  - three earlier snapshots exist: {bf:2017-08-10}, {bf:2021-04-15}, {bf:2021-08-10}"
++	di as txt "  - {bf:date(latest)} uses the most recent mirrored state"
++	di
++	di as txt "Example:  {stata ssc2 install cmp, date(2022-01-07)}"
+ end
+ 
+ 
+@@ -301,12 +404,12 @@ program define CheckPkgname, sclass
+ 		exit 198
+ 	}
+ 	if length(`"`pkgname'"')==1 {
+-		di as err `"{bf:`id'}: "{bf:`pkgname'}" invalid ssc2 package name"'
++		di as err `"{bf:`id'}: "{bf:`pkgname'}" invalid package name"'
+ 		exit 198
+ 	}
+ 	local pkgname = lower(`"`pkgname'"')
+-	if !index("abcdefghijklmnopqrstuvwxyz_",bsubstr(`"`pkgname'"',1,1)) {
+-		di as err `"{bf:`id'}: "{bf:`pkgname'}" invalid ssc2 package name"'
++	if !index("abcdefghijklmnopqrstuvwxyz_", substr(`"`pkgname'"',1,1)) {
++		di as err `"{bf:`id'}: "{bf:`pkgname'}" invalid package name"'
+ 		exit 198
+ 	}
+ 	sret local pkgname `"`pkgname'"'
+@@ -320,12 +423,12 @@ program define CheckFilename, sclass
+ 		exit 198
+ 	}
+ 	if length(`"`fn'"')==1 {
+-		di as err `"{bf:`id'}: "{bf:`fn'}" invalid ssc2 filename"'
++		di as err `"{bf:`id'}: "{bf:`fn'}" invalid filename"'
+ 		exit 198
+ 	}
+ 	local fn = lower(`"`fn'"')
+-	if !index("abcdefghijklmnopqrstuvwxyz_",bsubstr(`"`fn'"',1,1)) {
+-		di as err `"{bf:`id'}: "{bf:`fn'}" invalid ssc2 filename"'
++	if !index("abcdefghijklmnopqrstuvwxyz_", substr(`"`fn'"',1,1)) {
++		di as err `"{bf:`id'}: "{bf:`fn'}" invalid filename"'
+ 		exit 198
+ 	}
+ 	sret local fn `"`fn'"'
+diff --git a/snapshots.csv b/snapshots.csv
+new file mode 100644
+index 0000000..98272c1
+--- /dev/null
++++ b/snapshots.csv
+@@ -0,0 +1,1660 @@
++date
++2017-08-10
++2021-04-15
++2021-08-10
++2021-12-21
++2021-12-23
++2021-12-24
++2021-12-25
++2021-12-26
++2021-12-27
++2021-12-28
++2021-12-29
++2021-12-30
++2021-12-31
++2022-01-01
++2022-01-02
++2022-01-03
++2022-01-04
++2022-01-05
++2022-01-06
++2022-01-07
++2022-01-08
++2022-01-09
++2022-01-10
++2022-01-11
++2022-01-12
++2022-01-13
++2022-01-14
++2022-01-15
++2022-01-16
++2022-01-17
++2022-01-18
++2022-01-19
++2022-01-20
++2022-01-21
++2022-01-22
++2022-01-23
++2022-01-24
++2022-01-25
++2022-01-26
++2022-01-27
++2022-01-28
++2022-01-29
++2022-01-30
++2022-01-31
++2022-02-01
++2022-02-02
++2022-02-03
++2022-02-04
++2022-02-05
++2022-02-06
++2022-02-07
++2022-02-08
++2022-02-09
++2022-02-10
++2022-02-11
++2022-02-12
++2022-02-13
++2022-02-14
++2022-02-15
++2022-02-16
++2022-02-17
++2022-02-18
++2022-02-19
++2022-02-20
++2022-02-21
++2022-02-22
++2022-02-23
++2022-02-24
++2022-02-25
++2022-02-26
++2022-02-27
++2022-02-28
++2022-03-01
++2022-03-02
++2022-03-03
++2022-03-04
++2022-03-05
++2022-03-06
++2022-03-07
++2022-03-08
++2022-03-09
++2022-03-10
++2022-03-11
++2022-03-12
++2022-03-13
++2022-03-14
++2022-03-15
++2022-03-16
++2022-03-17
++2022-03-18
++2022-03-19
++2022-03-20
++2022-03-21
++2022-03-22
++2022-03-23
++2022-03-24
++2022-03-25
++2022-03-26
++2022-03-27
++2022-03-28
++2022-03-29
++2022-03-30
++2022-03-31
++2022-04-01
++2022-04-02
++2022-04-03
++2022-04-04
++2022-04-05
++2022-04-06
++2022-04-07
++2022-04-08
++2022-04-09
++2022-04-10
++2022-04-11
++2022-04-12
++2022-04-13
++2022-04-14
++2022-04-15
++2022-04-16
++2022-04-17
++2022-04-18
++2022-04-19
++2022-04-20
++2022-04-21
++2022-04-22
++2022-04-23
++2022-04-24
++2022-04-25
++2022-04-26
++2022-04-27
++2022-04-28
++2022-04-29
++2022-04-30
++2022-05-01
++2022-05-02
++2022-05-03
++2022-05-04
++2022-05-05
++2022-05-06
++2022-05-07
++2022-05-08
++2022-05-09
++2022-05-10
++2022-05-11
++2022-05-12
++2022-05-13
++2022-05-14
++2022-05-15
++2022-05-16
++2022-05-17
++2022-05-18
++2022-05-19
++2022-05-20
++2022-05-21
++2022-05-22
++2022-05-23
++2022-05-24
++2022-05-25
++2022-05-26
++2022-05-27
++2022-05-28
++2022-05-29
++2022-05-30
++2022-05-31
++2022-06-01
++2022-06-02
++2022-06-03
++2022-06-04
++2022-06-05
++2022-06-06
++2022-06-07
++2022-06-08
++2022-06-09
++2022-06-10
++2022-06-11
++2022-06-12
++2022-06-13
++2022-06-14
++2022-06-15
++2022-06-16
++2022-06-17
++2022-06-18
++2022-06-19
++2022-06-20
++2022-06-21
++2022-06-22
++2022-06-23
++2022-06-24
++2022-06-25
++2022-06-26
++2022-06-27
++2022-06-28
++2022-06-29
++2022-06-30
++2022-07-01
++2022-07-02
++2022-07-03
++2022-07-04
++2022-07-05
++2022-07-06
++2022-07-07
++2022-07-08
++2022-07-09
++2022-07-10
++2022-07-11
++2022-07-12
++2022-07-13
++2022-07-14
++2022-07-15
++2022-07-16
++2022-07-17
++2022-07-18
++2022-07-19
++2022-07-20
++2022-07-21
++2022-07-22
++2022-07-23
++2022-07-24
++2022-07-25
++2022-07-26
++2022-07-27
++2022-07-28
++2022-07-29
++2022-07-30
++2022-07-31
++2022-08-01
++2022-08-02
++2022-08-03
++2022-08-04
++2022-08-05
++2022-08-06
++2022-08-07
++2022-08-08
++2022-08-09
++2022-08-10
++2022-08-11
++2022-08-12
++2022-08-13
++2022-08-14
++2022-08-15
++2022-08-16
++2022-08-17
++2022-08-18
++2022-08-19
++2022-08-20
++2022-08-21
++2022-08-22
++2022-08-23
++2022-08-24
++2022-08-25
++2022-08-26
++2022-08-27
++2022-08-28
++2022-08-29
++2022-08-30
++2022-08-31
++2022-09-01
++2022-09-02
++2022-09-03
++2022-09-04
++2022-09-05
++2022-09-06
++2022-09-07
++2022-09-08
++2022-09-09
++2022-09-10
++2022-09-11
++2022-09-12
++2022-09-13
++2022-09-14
++2022-09-15
++2022-09-16
++2022-09-17
++2022-09-18
++2022-09-19
++2022-09-20
++2022-09-21
++2022-09-22
++2022-09-23
++2022-09-24
++2022-09-25
++2022-09-26
++2022-09-27
++2022-09-28
++2022-09-29
++2022-09-30
++2022-10-01
++2022-10-02
++2022-10-03
++2022-10-04
++2022-10-05
++2022-10-06
++2022-10-07
++2022-10-08
++2022-10-09
++2022-10-10
++2022-10-11
++2022-10-12
++2022-10-13
++2022-10-14
++2022-10-15
++2022-10-16
++2022-10-17
++2022-10-18
++2022-10-19
++2022-10-20
++2022-10-21
++2022-10-22
++2022-10-23
++2022-10-24
++2022-10-25
++2022-10-26
++2022-10-27
++2022-10-28
++2022-10-29
++2022-10-30
++2022-10-31
++2022-11-01
++2022-11-02
++2022-11-03
++2022-11-04
++2022-11-05
++2022-11-06
++2022-11-07
++2022-11-08
++2022-11-09
++2022-11-10
++2022-11-11
++2022-11-12
++2022-11-13
++2022-11-14
++2022-11-15
++2022-11-16
++2022-11-17
++2022-11-18
++2022-11-19
++2022-11-20
++2022-11-21
++2022-11-22
++2022-11-23
++2022-11-24
++2022-11-25
++2022-11-26
++2022-11-27
++2022-11-28
++2022-11-29
++2022-11-30
++2022-12-01
++2022-12-02
++2022-12-03
++2022-12-04
++2022-12-05
++2022-12-06
++2022-12-07
++2022-12-08
++2022-12-09
++2022-12-10
++2022-12-11
++2022-12-12
++2022-12-13
++2022-12-14
++2022-12-15
++2022-12-16
++2022-12-17
++2022-12-18
++2022-12-19
++2022-12-20
++2022-12-21
++2022-12-22
++2022-12-23
++2022-12-24
++2022-12-25
++2022-12-26
++2022-12-27
++2022-12-28
++2022-12-29
++2022-12-30
++2022-12-31
++2023-01-01
++2023-01-02
++2023-01-03
++2023-01-04
++2023-01-05
++2023-01-06
++2023-01-07
++2023-01-08
++2023-01-09
++2023-01-10
++2023-01-11
++2023-01-12
++2023-01-13
++2023-01-14
++2023-01-15
++2023-01-16
++2023-01-17
++2023-01-18
++2023-01-19
++2023-01-20
++2023-01-21
++2023-01-22
++2023-01-23
++2023-01-24
++2023-01-25
++2023-01-26
++2023-01-27
++2023-01-28
++2023-01-29
++2023-01-30
++2023-01-31
++2023-02-01
++2023-02-02
++2023-02-03
++2023-02-04
++2023-02-05
++2023-02-06
++2023-02-07
++2023-02-08
++2023-02-09
++2023-02-10
++2023-02-11
++2023-02-12
++2023-02-13
++2023-02-14
++2023-02-15
++2023-02-16
++2023-02-17
++2023-02-18
++2023-02-19
++2023-02-20
++2023-02-21
++2023-02-22
++2023-02-23
++2023-02-24
++2023-02-25
++2023-02-26
++2023-02-27
++2023-02-28
++2023-03-01
++2023-03-02
++2023-03-03
++2023-03-04
++2023-03-05
++2023-03-06
++2023-03-07
++2023-03-08
++2023-03-09
++2023-03-10
++2023-03-11
++2023-03-12
++2023-03-13
++2023-03-14
++2023-03-15
++2023-03-16
++2023-03-17
++2023-03-18
++2023-03-19
++2023-03-20
++2023-03-21
++2023-03-22
++2023-03-23
++2023-03-24
++2023-03-25
++2023-03-26
++2023-03-27
++2023-03-28
++2023-03-29
++2023-03-30
++2023-03-31
++2023-04-01
++2023-04-02
++2023-04-03
++2023-04-04
++2023-04-05
++2023-04-06
++2023-04-07
++2023-04-08
++2023-04-09
++2023-04-10
++2023-04-11
++2023-04-12
++2023-04-13
++2023-04-14
++2023-04-15
++2023-04-16
++2023-04-17
++2023-04-18
++2023-04-19
++2023-04-20
++2023-04-21
++2023-04-22
++2023-04-23
++2023-04-24
++2023-04-25
++2023-04-26
++2023-04-27
++2023-04-28
++2023-04-29
++2023-04-30
++2023-05-01
++2023-05-02
++2023-05-03
++2023-05-04
++2023-05-05
++2023-05-06
++2023-05-07
++2023-05-08
++2023-05-09
++2023-05-10
++2023-05-11
++2023-05-12
++2023-05-13
++2023-05-14
++2023-05-15
++2023-05-16
++2023-05-17
++2023-05-18
++2023-05-19
++2023-05-20
++2023-05-21
++2023-05-22
++2023-05-23
++2023-05-24
++2023-05-25
++2023-05-26
++2023-05-27
++2023-05-28
++2023-05-29
++2023-05-30
++2023-05-31
++2023-06-01
++2023-06-02
++2023-06-03
++2023-06-04
++2023-06-05
++2023-06-06
++2023-06-07
++2023-06-08
++2023-06-09
++2023-06-10
++2023-06-11
++2023-06-12
++2023-06-13
++2023-06-14
++2023-06-15
++2023-06-16
++2023-06-17
++2023-06-18
++2023-06-19
++2023-06-20
++2023-06-21
++2023-06-22
++2023-06-23
++2023-06-24
++2023-06-25
++2023-06-26
++2023-06-27
++2023-06-28
++2023-06-29
++2023-06-30
++2023-07-01
++2023-07-02
++2023-07-03
++2023-07-04
++2023-07-05
++2023-07-06
++2023-07-07
++2023-07-08
++2023-07-09
++2023-07-10
++2023-07-11
++2023-07-12
++2023-07-13
++2023-07-14
++2023-07-15
++2023-07-16
++2023-07-17
++2023-07-18
++2023-07-19
++2023-07-20
++2023-07-21
++2023-07-22
++2023-07-23
++2023-07-24
++2023-07-25
++2023-07-26
++2023-07-27
++2023-07-28
++2023-07-29
++2023-07-30
++2023-07-31
++2023-08-01
++2023-08-02
++2023-08-03
++2023-08-04
++2023-08-05
++2023-08-06
++2023-08-07
++2023-08-08
++2023-08-09
++2023-08-10
++2023-08-11
++2023-08-12
++2023-08-13
++2023-08-14
++2023-08-15
++2023-08-16
++2023-08-17
++2023-08-18
++2023-08-19
++2023-08-20
++2023-08-21
++2023-08-22
++2023-08-23
++2023-08-24
++2023-08-25
++2023-08-26
++2023-08-27
++2023-08-28
++2023-08-29
++2023-08-30
++2023-08-31
++2023-09-01
++2023-09-02
++2023-09-03
++2023-09-04
++2023-09-05
++2023-09-06
++2023-09-07
++2023-09-08
++2023-09-09
++2023-09-10
++2023-09-11
++2023-09-12
++2023-09-13
++2023-09-14
++2023-09-15
++2023-09-16
++2023-09-17
++2023-09-18
++2023-09-19
++2023-09-20
++2023-09-21
++2023-09-22
++2023-09-23
++2023-09-24
++2023-09-25
++2023-09-26
++2023-09-27
++2023-09-28
++2023-09-29
++2023-09-30
++2023-10-01
++2023-10-02
++2023-10-03
++2023-10-04
++2023-10-05
++2023-10-06
++2023-10-07
++2023-10-08
++2023-10-09
++2023-10-10
++2023-10-11
++2023-10-12
++2023-10-13
++2023-10-14
++2023-10-15
++2023-10-16
++2023-10-17
++2023-10-18
++2023-10-19
++2023-10-20
++2023-10-21
++2023-10-22
++2023-10-23
++2023-10-24
++2023-10-25
++2023-10-26
++2023-10-27
++2023-10-28
++2023-10-29
++2023-10-30
++2023-10-31
++2023-11-01
++2023-11-02
++2023-11-03
++2023-11-04
++2023-11-05
++2023-11-06
++2023-11-07
++2023-11-08
++2023-11-09
++2023-11-10
++2023-11-11
++2023-11-12
++2023-11-13
++2023-11-14
++2023-11-15
++2023-11-16
++2023-11-17
++2023-11-18
++2023-11-19
++2023-11-20
++2023-11-21
++2023-11-22
++2023-11-23
++2023-11-24
++2023-11-25
++2023-11-26
++2023-11-27
++2023-11-28
++2023-11-29
++2023-11-30
++2023-12-01
++2023-12-02
++2023-12-03
++2023-12-04
++2023-12-05
++2023-12-06
++2023-12-07
++2023-12-08
++2023-12-09
++2023-12-10
++2023-12-11
++2023-12-12
++2023-12-13
++2023-12-14
++2023-12-15
++2023-12-16
++2023-12-17
++2023-12-18
++2023-12-19
++2023-12-20
++2023-12-21
++2023-12-22
++2023-12-23
++2023-12-24
++2023-12-25
++2023-12-26
++2023-12-27
++2023-12-28
++2023-12-29
++2023-12-30
++2023-12-31
++2024-01-01
++2024-01-02
++2024-01-03
++2024-01-04
++2024-01-05
++2024-01-06
++2024-01-07
++2024-01-08
++2024-01-09
++2024-01-10
++2024-01-11
++2024-01-12
++2024-01-13
++2024-01-14
++2024-01-15
++2024-01-16
++2024-01-17
++2024-01-18
++2024-01-19
++2024-01-20
++2024-01-21
++2024-01-22
++2024-01-23
++2024-01-24
++2024-01-25
++2024-01-26
++2024-01-27
++2024-01-28
++2024-01-29
++2024-01-30
++2024-01-31
++2024-02-01
++2024-02-02
++2024-02-03
++2024-02-04
++2024-02-05
++2024-02-06
++2024-02-07
++2024-02-08
++2024-02-09
++2024-02-10
++2024-02-11
++2024-02-12
++2024-02-13
++2024-02-14
++2024-02-15
++2024-02-16
++2024-02-17
++2024-02-18
++2024-02-19
++2024-02-20
++2024-02-21
++2024-02-22
++2024-02-23
++2024-02-24
++2024-02-25
++2024-02-26
++2024-02-27
++2024-02-28
++2024-02-29
++2024-03-01
++2024-03-02
++2024-03-03
++2024-03-04
++2024-03-05
++2024-03-06
++2024-03-07
++2024-03-08
++2024-03-09
++2024-03-10
++2024-03-11
++2024-03-12
++2024-03-13
++2024-03-14
++2024-03-15
++2024-03-16
++2024-03-17
++2024-03-18
++2024-03-19
++2024-03-20
++2024-03-21
++2024-03-22
++2024-03-23
++2024-03-24
++2024-03-25
++2024-03-26
++2024-03-27
++2024-03-28
++2024-03-29
++2024-03-30
++2024-03-31
++2024-04-01
++2024-04-02
++2024-04-03
++2024-04-04
++2024-04-05
++2024-04-06
++2024-04-07
++2024-04-08
++2024-04-09
++2024-04-10
++2024-04-11
++2024-04-12
++2024-04-13
++2024-04-14
++2024-04-15
++2024-04-16
++2024-04-17
++2024-04-18
++2024-04-19
++2024-04-20
++2024-04-21
++2024-04-22
++2024-04-23
++2024-04-24
++2024-04-25
++2024-04-26
++2024-04-27
++2024-04-28
++2024-04-29
++2024-04-30
++2024-05-01
++2024-05-02
++2024-05-03
++2024-05-04
++2024-05-05
++2024-05-06
++2024-05-07
++2024-05-08
++2024-05-09
++2024-05-10
++2024-05-11
++2024-05-12
++2024-05-13
++2024-05-14
++2024-05-15
++2024-05-16
++2024-05-17
++2024-05-18
++2024-05-19
++2024-05-20
++2024-05-21
++2024-05-22
++2024-05-23
++2024-05-24
++2024-05-25
++2024-05-26
++2024-05-27
++2024-05-28
++2024-05-29
++2024-05-30
++2024-05-31
++2024-06-01
++2024-06-02
++2024-06-03
++2024-06-04
++2024-06-05
++2024-06-06
++2024-06-07
++2024-06-08
++2024-06-09
++2024-06-10
++2024-06-11
++2024-06-12
++2024-06-13
++2024-06-14
++2024-06-15
++2024-06-16
++2024-06-17
++2024-06-18
++2024-06-19
++2024-06-20
++2024-06-21
++2024-06-22
++2024-06-23
++2024-06-24
++2024-06-25
++2024-06-26
++2024-06-27
++2024-06-28
++2024-06-29
++2024-06-30
++2024-07-01
++2024-07-02
++2024-07-03
++2024-07-04
++2024-07-05
++2024-07-06
++2024-07-07
++2024-07-08
++2024-07-09
++2024-07-10
++2024-07-11
++2024-07-12
++2024-07-13
++2024-07-14
++2024-07-15
++2024-07-16
++2024-07-17
++2024-07-18
++2024-07-19
++2024-07-20
++2024-07-21
++2024-07-22
++2024-07-23
++2024-07-24
++2024-07-25
++2024-07-26
++2024-07-27
++2024-07-28
++2024-07-29
++2024-07-30
++2024-07-31
++2024-08-01
++2024-08-02
++2024-08-03
++2024-08-04
++2024-08-05
++2024-08-06
++2024-08-07
++2024-08-08
++2024-08-09
++2024-08-10
++2024-08-12
++2024-08-13
++2024-08-14
++2024-08-15
++2024-08-16
++2024-08-17
++2024-08-18
++2024-08-19
++2024-08-20
++2024-08-21
++2024-08-22
++2024-08-23
++2024-08-24
++2024-08-25
++2024-08-26
++2024-08-27
++2024-08-28
++2024-08-29
++2024-08-30
++2024-08-31
++2024-09-01
++2024-09-02
++2024-09-03
++2024-09-04
++2024-09-05
++2024-09-06
++2024-09-07
++2024-09-08
++2024-09-09
++2024-09-10
++2024-09-11
++2024-09-12
++2024-09-13
++2024-09-14
++2024-09-15
++2024-09-16
++2024-09-17
++2024-09-18
++2024-09-19
++2024-09-20
++2024-09-21
++2024-09-22
++2024-09-23
++2024-09-24
++2024-09-25
++2024-09-26
++2024-09-27
++2024-09-28
++2024-09-29
++2024-09-30
++2024-10-01
++2024-10-02
++2024-10-03
++2024-10-04
++2024-10-05
++2024-10-06
++2024-10-07
++2024-10-08
++2024-10-09
++2024-10-10
++2024-10-11
++2024-10-12
++2024-10-13
++2024-10-14
++2024-10-15
++2024-10-16
++2024-10-17
++2024-10-18
++2024-10-19
++2024-10-20
++2024-10-21
++2024-10-22
++2024-10-23
++2024-10-24
++2024-10-25
++2024-10-26
++2024-10-27
++2024-10-28
++2024-10-29
++2024-10-30
++2024-10-31
++2024-11-01
++2024-11-02
++2024-11-03
++2024-11-04
++2024-11-05
++2024-11-06
++2024-11-07
++2024-11-08
++2024-11-09
++2024-11-10
++2024-11-11
++2024-11-12
++2024-11-13
++2024-11-14
++2024-11-15
++2024-11-16
++2024-11-17
++2024-11-18
++2024-11-19
++2024-11-20
++2024-11-21
++2024-11-22
++2024-11-23
++2024-11-24
++2024-11-25
++2024-11-26
++2024-11-27
++2024-11-28
++2024-11-29
++2024-11-30
++2024-12-01
++2024-12-02
++2024-12-03
++2024-12-04
++2024-12-05
++2024-12-06
++2024-12-07
++2024-12-08
++2024-12-09
++2024-12-10
++2024-12-11
++2024-12-12
++2024-12-13
++2024-12-14
++2024-12-15
++2024-12-16
++2024-12-17
++2024-12-18
++2024-12-19
++2024-12-20
++2024-12-21
++2024-12-22
++2024-12-23
++2024-12-24
++2024-12-25
++2024-12-26
++2024-12-27
++2024-12-28
++2024-12-29
++2024-12-30
++2024-12-31
++2025-01-01
++2025-01-02
++2025-01-03
++2025-01-04
++2025-01-05
++2025-01-06
++2025-01-07
++2025-01-08
++2025-01-09
++2025-01-10
++2025-01-11
++2025-01-12
++2025-01-13
++2025-01-14
++2025-01-15
++2025-01-16
++2025-01-17
++2025-01-18
++2025-01-19
++2025-01-20
++2025-01-21
++2025-01-22
++2025-01-23
++2025-01-24
++2025-01-25
++2025-01-26
++2025-01-27
++2025-01-28
++2025-01-29
++2025-01-30
++2025-01-31
++2025-02-01
++2025-02-02
++2025-02-03
++2025-02-04
++2025-02-05
++2025-02-06
++2025-02-07
++2025-02-08
++2025-02-09
++2025-02-10
++2025-02-11
++2025-02-12
++2025-02-13
++2025-02-14
++2025-02-15
++2025-02-16
++2025-02-17
++2025-02-18
++2025-02-19
++2025-02-20
++2025-02-21
++2025-02-22
++2025-02-23
++2025-02-24
++2025-02-25
++2025-02-26
++2025-02-27
++2025-02-28
++2025-03-01
++2025-03-02
++2025-03-03
++2025-03-04
++2025-03-05
++2025-03-06
++2025-03-07
++2025-03-08
++2025-03-09
++2025-03-10
++2025-03-11
++2025-03-12
++2025-03-13
++2025-03-14
++2025-03-15
++2025-03-16
++2025-03-17
++2025-03-18
++2025-03-19
++2025-03-20
++2025-03-21
++2025-03-22
++2025-03-23
++2025-03-24
++2025-03-25
++2025-03-26
++2025-03-27
++2025-03-28
++2025-03-29
++2025-03-30
++2025-03-31
++2025-04-01
++2025-04-02
++2025-04-03
++2025-04-04
++2025-04-05
++2025-04-06
++2025-04-07
++2025-04-08
++2025-04-09
++2025-04-10
++2025-04-11
++2025-04-12
++2025-04-13
++2025-04-14
++2025-04-15
++2025-04-16
++2025-04-17
++2025-04-18
++2025-04-19
++2025-04-20
++2025-04-21
++2025-04-22
++2025-04-23
++2025-04-24
++2025-04-25
++2025-04-26
++2025-04-27
++2025-04-28
++2025-04-29
++2025-04-30
++2025-05-01
++2025-05-02
++2025-05-03
++2025-05-04
++2025-05-05
++2025-05-06
++2025-05-07
++2025-05-08
++2025-05-09
++2025-05-10
++2025-05-11
++2025-05-12
++2025-05-13
++2025-05-14
++2025-05-15
++2025-05-16
++2025-05-17
++2025-05-18
++2025-05-19
++2025-05-20
++2025-05-21
++2025-05-22
++2025-05-23
++2025-05-24
++2025-05-25
++2025-05-26
++2025-05-27
++2025-05-28
++2025-05-29
++2025-05-30
++2025-05-31
++2025-06-01
++2025-06-02
++2025-06-03
++2025-06-04
++2025-06-05
++2025-06-06
++2025-06-07
++2025-06-08
++2025-06-09
++2025-06-10
++2025-06-11
++2025-06-12
++2025-06-13
++2025-06-14
++2025-06-15
++2025-06-16
++2025-06-17
++2025-06-18
++2025-06-19
++2025-06-20
++2025-06-21
++2025-06-22
++2025-06-23
++2025-06-24
++2025-06-25
++2025-06-26
++2025-06-27
++2025-06-28
++2025-06-29
++2025-06-30
++2025-07-01
++2025-07-02
++2025-07-03
++2025-07-04
++2025-07-05
++2025-07-06
++2025-07-07
++2025-07-08
++2025-07-09
++2025-07-10
++2025-07-11
++2025-07-12
++2025-07-13
++2025-07-14
++2025-07-15
++2025-07-16
++2025-07-17
++2025-07-18
++2025-07-19
++2025-07-20
++2025-07-21
++2025-07-22
++2025-07-23
++2025-07-24
++2025-07-25
++2025-07-26
++2025-07-27
++2025-07-28
++2025-07-29
++2025-07-30
++2025-07-31
++2025-08-01
++2025-08-02
++2025-08-03
++2025-08-04
++2025-08-05
++2025-08-06
++2025-08-07
++2025-08-08
++2025-08-09
++2025-08-10
++2025-08-11
++2025-08-12
++2025-08-13
++2025-08-14
++2025-08-15
++2025-08-16
++2025-08-17
++2025-08-18
++2025-08-19
++2025-08-20
++2025-08-21
++2025-08-22
++2025-08-23
++2025-08-24
++2025-08-25
++2025-08-26
++2025-08-27
++2025-08-28
++2025-08-29
++2025-08-30
++2025-08-31
++2025-09-01
++2025-09-02
++2025-09-03
++2025-09-04
++2025-09-05
++2025-09-06
++2025-09-07
++2025-09-08
++2025-09-09
++2025-09-10
++2025-09-11
++2025-09-12
++2025-09-13
++2025-09-14
++2025-09-15
++2025-09-16
++2025-09-17
++2025-09-18
++2025-09-19
++2025-09-20
++2025-09-21
++2025-09-22
++2025-09-23
++2025-09-24
++2025-09-25
++2025-09-26
++2025-09-27
++2025-09-28
++2025-09-29
++2025-09-30
++2025-10-01
++2025-10-02
++2025-10-03
++2025-10-04
++2025-10-05
++2025-10-06
++2025-10-07
++2025-10-08
++2025-10-09
++2025-10-10
++2025-10-11
++2025-10-12
++2025-10-13
++2025-10-14
++2025-10-15
++2025-10-16
++2025-10-17
++2025-10-18
++2025-10-19
++2025-10-20
++2025-10-21
++2025-10-22
++2025-10-23
++2025-10-24
++2025-10-25
++2025-10-26
++2025-10-27
++2025-10-28
++2025-10-29
++2025-10-30
++2025-10-31
++2025-11-01
++2025-11-02
++2025-11-03
++2025-11-04
++2025-11-05
++2025-11-06
++2025-11-07
++2025-11-08
++2025-11-09
++2025-11-10
++2025-11-11
++2025-11-12
++2025-11-13
++2025-11-14
++2025-11-15
++2025-11-16
++2025-11-17
++2025-11-18
++2025-11-19
++2025-11-20
++2025-11-21
++2025-11-22
++2025-11-23
++2025-11-24
++2025-11-25
++2025-11-26
++2025-11-27
++2025-11-28
++2025-11-29
++2025-11-30
++2025-12-01
++2025-12-02
++2025-12-03
++2025-12-04
++2025-12-05
++2025-12-06
++2025-12-07
++2025-12-08
++2025-12-09
++2025-12-10
++2025-12-11
++2025-12-12
++2025-12-13
++2025-12-14
++2025-12-15
++2025-12-16
++2025-12-17
++2025-12-18
++2025-12-19
++2025-12-20
++2025-12-21
++2025-12-22
++2025-12-23
++2025-12-24
++2025-12-25
++2025-12-26
++2025-12-27
++2025-12-28
++2025-12-29
++2025-12-30
++2025-12-31
++2026-01-01
++2026-01-02
++2026-01-03
++2026-01-04
++2026-01-05
++2026-01-06
++2026-01-07
++2026-01-08
++2026-01-09
++2026-01-10
++2026-01-11
++2026-01-12
++2026-01-13
++2026-01-14
++2026-01-15
++2026-01-16
++2026-01-17
++2026-01-18
++2026-01-19
++2026-01-20
++2026-01-21
++2026-01-22
++2026-01-23
++2026-01-24
++2026-01-25
++2026-01-26
++2026-01-27
++2026-01-28
++2026-01-29
++2026-01-30
++2026-01-31
++2026-02-01
++2026-02-02
++2026-02-03
++2026-02-04
++2026-02-05
++2026-02-06
++2026-02-07
++2026-02-08
++2026-02-09
++2026-02-10
++2026-02-11
++2026-02-12
++2026-02-13
++2026-02-14
++2026-02-15
++2026-02-16
++2026-02-17
++2026-02-18
++2026-02-19
++2026-02-20
++2026-02-21
++2026-02-22
++2026-02-23
++2026-02-24
++2026-02-25
++2026-02-26
++2026-02-27
++2026-02-28
++2026-03-01
++2026-03-02
++2026-03-03
++2026-03-04
++2026-03-05
++2026-03-06
++2026-03-07
++2026-03-11
++2026-03-12
++2026-03-13
++2026-03-14
++2026-03-15
++2026-03-16
++2026-03-17
++2026-03-18
++2026-03-19
++2026-03-20
++2026-03-21
++2026-03-22
++2026-03-23
++2026-03-24
++2026-03-25
++2026-03-26
++2026-03-27
++2026-03-28
++2026-03-29
++2026-03-30
++2026-03-31
++2026-04-01
++2026-04-02
++2026-04-03
++2026-04-04
++2026-04-05
++2026-04-06
++2026-04-07
++2026-04-08
++2026-04-09
++2026-04-10
++2026-04-11
++2026-04-12
++2026-04-13
++2026-04-14
++2026-04-15
++2026-04-16
++2026-04-17
++2026-04-18
++2026-04-19
++2026-04-20
++2026-04-21
++2026-04-22
++2026-04-23
++2026-04-24
++2026-04-25
++2026-04-26
++2026-04-27
++2026-04-28
++2026-04-29
++2026-04-30
++2026-05-01
++2026-05-02
++2026-05-03
++2026-05-04
++2026-05-05
++2026-05-06
++2026-05-07
++2026-05-08
++2026-05-09
++2026-05-10
++2026-05-11
++2026-05-12
++2026-05-13
++2026-05-14
++2026-05-15
++2026-05-16
++2026-05-17
++2026-05-18
++2026-05-19
++2026-05-20
++2026-05-21
++2026-05-22
++2026-05-23
++2026-05-24
++2026-05-25
++2026-05-26
++2026-05-27
++2026-05-28
++2026-05-29
++2026-05-30
++2026-05-31
++2026-06-01
++2026-06-02
++2026-06-03
++2026-06-04
++2026-06-05
++2026-06-06
++2026-06-07
++2026-06-08
++2026-06-09
++2026-06-10
++2026-06-11
++2026-06-12
++2026-06-13
++2026-06-14
++2026-06-15
++2026-06-16
++2026-06-17
++2026-06-18
++2026-06-19
++2026-06-20
++2026-06-21
++2026-06-22
++2026-06-23
++2026-06-24
++2026-06-25
++2026-06-26
++2026-06-27
++2026-06-28
++2026-06-29
++2026-06-30
++2026-07-01
++2026-07-02
++2026-07-03
++2026-07-04
++2026-07-05
++2026-07-06
++2026-07-07
++2026-07-08
+diff --git a/ssc2.pkg b/ssc2.pkg
+index 0e55ff8..70c1a64 100644
+--- a/ssc2.pkg
++++ b/ssc2.pkg
+@@ -1,18 +1,22 @@
+-v 1.0.0
+-d 'ssc2': Allow for installation of snapshot packages. Backward compatible.
+-p This is a drop-in replacement for the system-provided {cmd:ssc} command, allowing for installation of date-specific snapshots of packages.
+-d It adds a new option "{cmd:date()}" that allows to pick a specific snapshot of SSC as of that date.
+-d All other options are passed through.
++v 3
++d 'ssc2': Install Stata packages from date-based snapshots of the SSC archive
++d
++d This is a drop-in replacement for the system-provided ssc command,
++d allowing installation of date-specific snapshots of packages from
++d a mirror of the SSC archive. It adds a date() option that selects
++d a snapshot of SSC as of that date, and a from() option to point at
++d an alternative mirror. Where nothing snapshot-specific is requested,
++d ssc2 delegates to the official ssc command.
+ d
+ d KW: technical
+ d KW: snapshot
++d KW: reproducibility
+ d
+-d Requires: Stata version any
++d Requires: Stata version 14 (https support; to be confirmed)
+ d
+-d Distribution-Date: 20230126
++d Distribution-Date: 20260708
+ d
+ d Authors: Lars Vilhuber
+-d Support: On Github
+-
++d Support: https://github.com/labordynamicsinstitute/stata-ssc2/issues
+ f ado/ssc2.ado
+ f sthlp/ssc2.sthlp
+diff --git a/stata.toc b/stata.toc
+index 93aece5..682732c 100644
+--- a/stata.toc
++++ b/stata.toc
+@@ -1,3 +1,5 @@
+-v 1.0.0
+-d 'ssc2': Allow for installation of snapshot packages. Backward compatible.
+-p This is a drop-in replacement for the system-provided {cmd:ssc} command, allowing for installation of date-specific snapshots of packages.
++v 3
++d ssc2: Install Stata packages from date-based snapshots of the SSC archive
++d Labor Dynamics Institute
++d https://github.com/labordynamicsinstitute/stata-ssc2
++p ssc2 Install Stata packages from date-based snapshots of the SSC archive
+diff --git a/sthlp/ssc2.sthlp b/sthlp/ssc2.sthlp
+index 5754246..ec32b9e 100644
+--- a/sthlp/ssc2.sthlp
++++ b/sthlp/ssc2.sthlp
+@@ -1,5 +1,5 @@
+ {smcl}
+-{* *! version 1.2.14  09oct2020}{...}
++{* *! version 2.0.0-draft  08jul2026}{...}
+ {vieweralsosee "[R] ssc2" "mansection R ssc2"}{...}
+ {vieweralsosee "" "--"}{...}
+ {vieweralsosee "[R] ssc" "help ado update"}{...}
+@@ -13,7 +13,7 @@
+ {viewerjumpto "Remarks" "ssc2##remarks"}{...}
+ {viewerjumpto "Examples" "ssc2##examples"}{...}
+ {p2colset 1 12 14 2}{...}
+-{p2col:{bf:[R] ssc2} {hline 2}}Install and uninstall packages from SSC mirror{p_end}
++{p2col:{bf:ssc2} {hline 2}}Install and uninstall packages from SSC, including from date-based snapshots of an SSC mirror{p_end}
+ {p2colreset}{...}
+ 
+ 
+@@ -30,7 +30,9 @@ Describe a specified package at SSC mirror
+ {opt d:escribe}
+ {c -(} {it:pkgname} | {it:letter} {c )-}
+ [{cmd:,}
+-{cmd:saving(}{it:{help filename}}[{cmd:, replace}]{cmd:)}]
++{cmd:saving(}{it:{help filename}}[{cmd:, replace}]{cmd:)}
++{opt date(datespec)}
++{opt from(url)}]
+ 
+ 
+ 
+@@ -43,7 +45,9 @@ Install a specified package from SSC mirror
+ {it:pkgname}
+ [{cmd:,}
+ {opt all}
+-{opt replace}]
++{opt replace}
++{opt date(datespec)}
++{opt from(url)}]
+ 
+ 
+ 
+@@ -55,7 +59,9 @@ Type a specific file stored at SSC mirror
+ {cmd:ssc2}
+ {opt type}
+ {it:{help filename}}
+-[{cmd:, asis}]
++[{cmd:, asis}
++{opt date(datespec)}
++{opt from(url)}]
+ 
+ 
+ {phang}
+@@ -70,11 +76,15 @@ Copy a specific file from SSC mirror to your computer
+ {opt p:ersonal}
+ {opt replace}
+ {opt pub:lic}
+-{opt bin:ary}]
++{opt bin:ary}
++{opt date(datespec)}
++{opt from(url)}]
+ 
+ 
+ {p 4 6 2}
+-where {it:letter} in {opt ssc2 describe} is {opt a}-{opt z} or {opt _}.
++where {it:letter} in {opt ssc2 describe} is {opt a}-{opt z} or {opt _},
++and {it:datespec} is a date in {bf:YYYY-MM-DD} format or the word
++{bf:latest}.
+ 
+ 
+ {marker description}{...}
+@@ -82,7 +92,23 @@ where {it:letter} in {opt ssc2 describe} is {opt a}-{opt z} or {opt _}.
+ 
+ {pstd}
+ {opt ssc2} works with packages (and files) from the Statistical Software
+-Components (ssc2) Archive, as mirrored.
++Components (SSC) archive.  It extends the official {helpb ssc} command with
++the ability to install packages {it:as they existed on a given date}, using
++date-based snapshots of the SSC archive stored in the
++{browse "https://github.com/labordynamicsinstitute/ssc-mirror":ssc-mirror}
++repository.  This supports reproducibility: an analysis can be re-run with
++the exact package versions that were current at a given date.
++
++{pstd}
++When neither {opt date()} nor {opt from()} is specified, {opt ssc2}
++delegates to the official {helpb ssc} command, so {cmd:ssc2} behaves as a
++strict superset of {cmd:ssc}.  The subcommands {cmd:new}, {cmd:hot}, and
++{cmd:uninstall} are always delegated to {helpb ssc}.
++
++{pstd}
++Daily snapshots exist from {bf:2021-12-23} onward; three earlier snapshots
++exist ({bf:2017-08-10}, {bf:2021-04-15}, {bf:2021-08-10}).  Type
++{cmd:ssc2 snapshots} for details.
+ 
+ 
+ {pstd}
+@@ -166,6 +192,24 @@ The above sections are not included in this help file.
+      packages are listed.
+ 
+ 
++{marker options_snapshot}{...}
++{title:Options for selecting a snapshot (describe, install, type, copy)}
++
++{phang}
++{opt date(datespec)} selects the snapshot of the SSC archive as of the
++    specified date.  {it:datespec} is either a date in {bf:YYYY-MM-DD}
++    format (for example, {cmd:date(2022-01-07)}) or {bf:latest}, which uses
++    the most recently mirrored state of the archive.  If no snapshot exists
++    for the specified date, an error message points to the
++    {browse "https://github.com/labordynamicsinstitute/ssc-mirror/tags":list of available snapshot dates}.
++
++{phang}
++{opt from(url)} specifies the base URL of the snapshot mirror; the default
++    is {cmd:https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror}.
++    Use this to point at your own clone of the mirror, which must use the
++    same layout ({it:url}{cmd:/}{it:ref}{cmd:/fmwww.bc.edu/repec/bocode/}).
++
++
+ {marker option_ssc2_describe}{...}
+ {title:Option for use with ssc2 describe}
+ 
+diff --git a/test.do b/test.do
+index 397b4a7..5d59bec 100644
+--- a/test.do
++++ b/test.do
+@@ -1,22 +1,71 @@
+-// testing
+-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror-stata/master")
+-// install a specific version
++// -----------------------------------------------------------------------
++// Test script for ssc2. Run interactively or via:  stata -b do test.do
++// Uses assert-style checks (rc) so failures are loud.
++// -----------------------------------------------------------------------
++clear all
++version 14
++
++// install ssc2 itself from the repo under test
++// NOTE: adjust the branch (main / your fork) as needed
++global github "https://raw.githubusercontent.com"
++capture ado uninstall ssc2
++net install ssc2, all replace from("$github/labordynamicsinstitute/stata-ssc2/main")
++
++// ---- 1. dated install --------------------------------------------------
++capture ssc uninstall cmp
+ ssc2 install cmp, date(2022-01-07)
+-which cmp
++which cmp                       // expect: *! cmp 8.6.7 5 January 2022
+ ssc uninstall cmp
+-// install using standard command
+-ssc install cmp
++
++// ---- 2. date normalization (2022-1-7 == 2022-01-07) ---------------------
++ssc2 install cmp, date(2022-1-7)
+ which cmp
+ ssc uninstall cmp
+-// show that the redirect also works
++
++// ---- 3. plain install must delegate to official ssc ---------------------
+ ssc2 install cmp
++which cmp                       // expect: current SSC version
++ssc uninstall cmp
++
++// ---- 4. date(latest) uses the releases branch of the mirror -------------
++ssc2 install cmp, date(latest)
+ which cmp
++ssc uninstall cmp
+ 
+-// system used for testing
++// ---- 5. delegated subcommands must not error ----------------------------
++ssc2 hot, n(5)
++ssc2 new
++ssc2 describe cmp               // no date: delegated
++ssc2 describe cmp, date(2022-01-07)
++ssc2 describe c,   date(2022-01-07)
++
++// ---- 6. copy/type with a date (previously broken) ------------------------
++tempfile ignore
++cd `c(tmpdir)'
++ssc2 type  cmp.pkg, date(2022-01-07)
++ssc2 copy  cmp.pkg, date(2022-01-07) replace
++
++// ---- 7. error handling ----------------------------------------------------
++capture noisily ssc2 install cmp, date(2099-01-01)
++assert _rc==198                  // future date
++capture noisily ssc2 install cmp, date(not-a-date)
++assert _rc==198                  // malformed date
++capture noisily ssc2 install cmp, date(2020-06-15)
++assert _rc!=0                    // date in pre-daily-snapshot era with no tag
++capture noisily ssc2 install thispackagedoesnotexist, date(2022-01-07)
++assert _rc!=0                    // package not found in snapshot
++capture noisily ssc2 badsubcommand
++assert _rc==198
+ 
++// ---- 8. informational subcommands ----------------------------------------
++ssc2 snapshots
++capture noisily ssc2 versions cmp
++assert _rc==198                  // documented as not yet implemented
+ 
++di as result "ALL TESTS PASSED"
++
++// system used for testing
+ di "=== SYSTEM DIAGNOSTICS ==="
+ creturn list
+ query
+ di "=========================="
+-
+diff --git a/tools/make_snapshot_index.py b/tools/make_snapshot_index.py
+new file mode 100755
+index 0000000..4850b20
+--- /dev/null
++++ b/tools/make_snapshot_index.py
+@@ -0,0 +1,54 @@
++#!/usr/bin/env python3
++"""
++Build a machine-readable index of SSC-mirror snapshots.
++
++Writes snapshots.csv (one row per snapshot date). Intended to be run by a
++scheduled GitHub Action and committed to this repository (or served via
++GitHub Pages), so that a future `ssc2 snapshots` / `ssc2 versions`
++subcommand can fetch it with Stata's -copy- or -import delimited-.
++
++Uses `git ls-remote --tags`, which needs no authentication and is not
++subject to the GitHub REST API rate limits.
++
++Future extension for `ssc2 versions <pkg>`: for each snapshot date, fetch
++fmwww.bc.edu/repec/bocode/<l>/<pkg>.pkg and record its Distribution-Date
++and the starbang version line of the main ado file. That is expensive
++across ~1,600 tags, so it should be done incrementally (only new tags per
++run) and cached in a per-package CSV.
++"""
++import csv
++import re
++import subprocess
++import sys
++
++MIRROR = "https://github.com/labordynamicsinstitute/ssc-mirror.git"
++DATE_TAG = re.compile(r"^\d{4}-\d{2}-\d{2}$")
++
++
++def list_snapshot_tags(remote: str = MIRROR) -> list[str]:
++    out = subprocess.run(
++        ["git", "ls-remote", "--tags", remote],
++        check=True, capture_output=True, text=True,
++    ).stdout
++    tags = set()
++    for line in out.splitlines():
++        ref = line.split("refs/tags/")[-1].removesuffix("^{}")
++        if DATE_TAG.match(ref):
++            tags.add(ref)
++    return sorted(tags)
++
++
++def main() -> int:
++    tags = list_snapshot_tags()
++    with open("snapshots.csv", "w", newline="") as fh:
++        w = csv.writer(fh)
++        w.writerow(["date"])
++        for t in tags:
++            w.writerow([t])
++    print(f"wrote snapshots.csv with {len(tags)} snapshot dates "
++          f"({tags[0]} .. {tags[-1]})")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
