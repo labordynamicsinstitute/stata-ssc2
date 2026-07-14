@@ -1,122 +1,222 @@
-*! version 1.1.7 29jan2023
-// Based on 
-// ssc2 version 1.1.6  15oct2019
+*! version 2.0.0-draft 08jul2026  L. Vilhuber and contributors
+*! Install Stata packages from date-based snapshots of the SSC archive,
+*! mirrored at https://github.com/labordynamicsinstitute/ssc-mirror
+*!
+*! Design:
+*!   - Subcommands with no snapshot-specific behavior (new/whatsnew,
+*!     hot/whatshot, uninstall) are delegated verbatim to the official
+*!     -ssc- command shipped with Stata.
+*!   - describe/install/copy/type are also delegated to -ssc- whenever
+*!     neither date() nor from() is specified, so that ssc2 remains a
+*!     strict superset of ssc and automatically inherits upstream fixes.
+*!   - With date() (or from()), the mirror is used instead.
+*!
+*! NOTE: version 14 is declared because the mirror is served over https
+*! (raw.githubusercontent.com); older Statas cannot fetch https URLs.
+*! The exact minimum version should be confirmed by testing.
+
 program define ssc2
-	version 7
+	version 14
 	gettoken cmd 0 : 0, parse(" ,")
 
-	di as txt "" _c		/* work around for net display problem */
+	di as txt "" _c		/* work-around for net display problem */
 
 	if `"`cmd'"'=="" {
 		di as txt "ssc2 commands are"
-		di as txt "    {cmd:ssc2 new}"
-		di as txt "    {cmd:ssc2 hot}"
+		di as txt "    {cmd:ssc2 new}        (delegated to {helpb ssc})"
+		di as txt "    {cmd:ssc2 hot}        (delegated to {helpb ssc})"
 		di
-		di as txt "    {cmd:ssc2 describe}  {it:pkgname}"
-		di as txt "    {cmd:ssc2 describe}  {it:letter}"
+		di as txt "    {cmd:ssc2 describe}  {it:pkgname} [, date()]"
+		di as txt "    {cmd:ssc2 describe}  {it:letter}  [, date()]"
 		di
-		di as txt "    {cmd:ssc2 install}   {it:pkgname}"
+		di as txt "    {cmd:ssc2 install}   {it:pkgname} [, date()]"
 		di as txt "    {cmd:ssc2 uninstall} {it:pkgname}"
 		di
-		di as txt "    {cmd:ssc2 type}      {it:filename}  (less used)"
-		di as txt "    {cmd:ssc2 copy}      {it:filename}  (less used)"
-		di as txt "see help {help ssc2##|_new:ssc2}"
+		di as txt "    {cmd:ssc2 type}      {it:filename} [, date()]  (less used)"
+		di as txt "    {cmd:ssc2 copy}      {it:filename} [, date()]  (less used)"
+		di
+		di as txt "    {cmd:ssc2 snapshots}            (information on available snapshots)"
+		di as txt "see help {help ssc2}"
 		exit 198
 	}
 
-
 	local l = length(`"`cmd'"')
-	if `"`cmd'"' == bsubstr("whatsnew",1,max(4,`l')) {
-		// unchanged
-		sscwhatsnew `0'
+
+	* ---- pure pass-throughs to the official ssc command ----------------
+	* The official -ssc- is present in every Stata installation; calling
+	* the top-level command (rather than its internal subroutines, which
+	* are undocumented and only in memory once ssc.ado has been loaded)
+	* is the only reliable way to delegate.
+	if `"`cmd'"'=="new" | `"`cmd'"'==substr("whatsnew",1,max(4,`l')) {
+		ssc whatsnew `0'
 		exit
 	}
-	if `"`cmd'"' == "new" { 
-		// unchanged
-		sscwhatsnew `0'
+	if `"`cmd'"'=="hot" | `"`cmd'"'==substr("whatshot",1,max(6,`l')) {
+		ssc hot `0'
 		exit
 	}
-	if `"`cmd'"' == bsubstr("whatshot",1,max(6,`l')) {
-		// unchanged
-		ssc_whatshot `0'
+	if `"`cmd'"'=="uninstall" {
+		ssc uninstall `0'
 		exit
 	}
-	if `"`cmd'"' == "hot" { 
-		// unchanged
-		ssc_whatshot `0'
+
+	* ---- subcommands that gain date()/from() ---------------------------
+	if `"`cmd'"'==substr("describe",1,max(1,`l')) {
+		ssc2_describe `0'
 		exit
 	}
-	if `"`cmd'"' == bsubstr("describe",1,max(1,`l')) {
-		ssc2describe `0'
-		exit
-	}
-	if `"`cmd'"' == bsubstr("install",1,max(4,`l')) {
-		ssc2install `0'
-		exit
-	}
-	if `"`cmd'"' == "uninstall" {
-		// unchanged
-		sscuninstall `0'
+	if `"`cmd'"'==substr("install",1,max(4,`l')) {
+		ssc2_install `0'
 		exit
 	}
 	if `"`cmd'"'=="copy" | `"`cmd'"'=="cp" {
-		// unchanged?
-		ssc2copy `0'
+		ssc2_copy `0'
 		exit
 	}
 	if `"`cmd'"'=="type" | `"`cmd'"'=="cat" {
-		// unchanged
-		ssc2type `0'
+		ssc2_type `0'
 		exit
 	}
+
+	* ---- new informational / future subcommands ------------------------
+	if `"`cmd'"'=="snapshots" {
+		ssc2_snapshots `0'
+		exit
+	}
+	if `"`cmd'"'=="versions" {
+		di as err "{bf:ssc2 versions} is not yet implemented."
+		di as err "It will list the versions of a package available across snapshots."
+		di as err `"Meanwhile, browse {browse "https://github.com/labordynamicsinstitute/ssc-mirror/tags":the snapshot list}."'
+		exit 198
+	}
+
 	di as err `"{bf:ssc2 `cmd'}: invalid subcommand"'
 	exit 198
 end
 
-// define the base url if not using options
-global repecadr "fmwww.bc.edu/repec/bocode/"
-global SSCMIRRORURL "raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror"
 
+* =======================================================================
+* ResolveSnapshot: turn date()/from() into a mirror URL
+*   returns r(ref)  : git ref (tag YYYY-MM-DD, or "releases" for latest)
+*   returns r(url)  : base URL ending in .../fmwww.bc.edu/repec/bocode/
+*   returns r(shown): human-readable label for messages
+* =======================================================================
+program define ResolveSnapshot, rclass
+	syntax [, DATE(string) FROM(string)]
 
-program define ProcSSCDate, rclass
-	local datetoken `"`0'"'
-	gettoken date dateurl : datetoken, parse(" ,")
-	gettoken nothing dateurl : datetoken, parse(" ,")
-
-	if "`date'"=="" {
-		InvalidDateURL `0'
+	* Mirror URL precedence:
+	*   1. from() option
+	*   2. Stata global $SSC2_MIRROR
+	*   3. environment variable SSC2_MIRROR
+	*   4. built-in default
+	* The mirror is expected to move to a different GitHub organization;
+	* the overrides let users and scripts adapt without a code change.
+	local isdefault 0
+	if `"`from'"'=="" {
+		local from `"$SSC2_MIRROR"'
 	}
-	local today  : display %tdCY-N-D date(c(current_date), "DMY")
-	
-	if "`today'" <  "`date'" {
-		InvalidDateURL `0' `"Date is in the future!"'
+	if `"`from'"'=="" {
+		local from : environment SSC2_MIRROR
 	}
-	ret local ssc2date "`date'"
-	ret local ssc2url "https://${SSCMIRRORURL}/`date'/${repecadr}"
+	if `"`from'"'=="" {
+		local from "https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror"
+		local isdefault 1
+	}
 
-	// This should presumably fetch the list of valid dates, and validate against that
-	// TBD
+	* API base used only to diagnose failures (tag-existence check);
+	* same precedence: $SSC2_MIRROR_API > env SSC2_MIRROR_API > default,
+	* but the default applies only while the default mirror is in use.
+	local api `"$SSC2_MIRROR_API"'
+	if `"`api'"'=="" {
+		local api : environment SSC2_MIRROR_API
+	}
+	if `"`api'"'=="" & `isdefault' {
+		local api "https://api.github.com/repos/labordynamicsinstitute/ssc-mirror"
+	}
+	* strip one trailing slash, if any
+	if substr(`"`from'"', -1, 1)=="/" {
+		local from = substr(`"`from'"', 1, length(`"`from'"')-1)
+	}
+
+	if `"`date'"'=="" | lower(`"`date'"')=="latest" {
+		* the mirror keeps its most recent state on the "releases" branch
+		local ref   "releases"
+		local shown "latest (releases branch)"
+	}
+	else {
+		* accept YYYY-MM-DD (also normalizes e.g. 2022-1-7 -> 2022-01-07)
+		local d = date(`"`date'"', "YMD")
+		if `d' >= . {
+			di as err `"option {bf:date(`date')}: invalid date"'
+			di as err "  specify a date as YYYY-MM-DD, or {bf:date(latest)}"
+			exit 198
+		}
+		local ref : display %tdCY-N-D `d'
+		local ref = trim("`ref'")
+		local today = date(c(current_date), "DMY")
+		if `d' > `today' {
+			di as err `"option {bf:date(`date')}: date is in the future"'
+			exit 198
+		}
+		if `d' < date("2017-08-10", "YMD") {
+			di as err `"option {bf:date(`date')}: no snapshots exist before 2017-08-10"'
+			exit 198
+		}
+		if `d' < date("2021-12-21", "YMD") {
+			di as txt "note: daily snapshots begin 2021-12-21; before that only"
+			di as txt "      2017-08-10, 2021-04-15, and 2021-08-10 exist."
+		}
+		local shown "`ref'"
+	}
+
+	return local ref   `"`ref'"'
+	return local shown `"`shown'"'
+	return local api   `"`api'"'
+	return local url   `"`from'/`ref'/fmwww.bc.edu/repec/bocode/"'
 end
 
 
-program define InvalidDateURL
-    args date errormsg
-	di as err `"option {bf:date(`date')}:  invalid date"'
-	di as err `"  Date must be valid from https://${SSCMIRRORURL}/tags"'
-	if "`errormsg'" != "" {
-		di as err `"  `errormsg'"'
+* Helpful error when -net from- on a snapshot URL fails.
+* If an API base is known, one cheap call checks whether the git tag for
+* the requested date exists, so the user learns WHICH thing went wrong.
+* Any API response other than a clean hit or a clean file-not-found
+* (e.g., the 60/hour unauthenticated rate limit yields neither) is
+* treated as inconclusive and the generic message is shown.
+program define DiagnoseSnapshot
+	args url ref rc api
+	di as err `"could not read the package index at"'
+	di as err `"    `url'"'
+	local diagnosed 0
+	if `"`api'"' != "" & `"`ref'"' != "releases" {
+		tempfile chk
+		capture copy `"`api'/git/ref/tags/`ref'"' `"`chk'"', replace
+		local crc = _rc
+		if `crc'==0 {
+			di as err `"  the snapshot {bf:`ref'} exists on the mirror, so this is likely"'
+			di as err "  a network problem or an unexpected mirror layout"
+			local diagnosed 1
+		}
+		else if `crc'==601 {
+			di as err `"  the mirror has {bf:no snapshot dated `ref'}"'
+			di as err `"  (see {browse "https://github.com/labordynamicsinstitute/ssc-mirror/tags":the snapshot list} and {browse "https://github.com/labordynamicsinstitute/ssc-mirror/blob/main/ERRATA.md":ERRATA} for known gaps)"'
+			local diagnosed 1
+		}
 	}
-	exit 198
+	if !`diagnosed' {
+		di as err "possible reasons:"
+		di as err `"  - no snapshot exists for {bf:`ref'}"'
+		di as err "  - a network problem, or the mirror host is unreachable"
+	}
+	exit `rc'
 end
 
 
-
-program define ssc2describe
-	* ssc2 describe <package>|<ltr> [, saving(<filename>[,replace]) date(<date string>)]
+program define ssc2_describe
+	* ssc2 describe <package>|<ltr> [, saving(fn[,replace]) date() from()]
 	gettoken pkgname 0 : 0, parse(" ,")
 	if length(`"`pkgname'"')==1 {
 		local pkgname = lower(`"`pkgname'"')
-		if !index("abcdefghijklmnopqrstuvwxyz_",`"`pkgname'"') {
+		if !index("abcdefghijklmnopqrstuvwxyz_", `"`pkgname'"') {
 			di as err "{bf:ssc2 describe}: letter must be a-z or _"
 			exit 198
 		}
@@ -125,107 +225,136 @@ program define ssc2describe
 		CheckPkgname "ssc2 describe" `"`pkgname'"'
 		local pkgname `"`s(pkgname)'"'
 	}
-	syntax [, SAVING(string asis) DATE(string asis)]
-	if `"`date'"' != "" {
-		ProcSSCDate `date'
-		local ssc2date `"`r(ssc2date)'"'
-		local ssc2url  `"`r(ssc2url)'"'
+	syntax [, SAVING(string asis) DATE(string) FROM(string)]
+
+	* no snapshot requested: delegate fully to official ssc
+	if `"`date'`from'"'=="" {
+		if `"`saving'"'!="" {
+			ssc describe `pkgname', saving(`saving')
+		}
+		else {
+			ssc describe `pkgname'
+		}
+		exit
 	}
-	else {
-		local ssc2url "http://${repecadr}"
-	}
-	LogOutput `"`saving'"' ssc2describe_u `"`pkgname'"' `"`ssc2url'"' `"`ssc2date'"'
+
+	ResolveSnapshot, date(`date') from(`from')
+	local ref   `"`r(ref)'"'
+	local shown `"`r(shown)'"'
+	local url   `"`r(url)'"'
+	local api   `"`r(api)'"'
+
+	LogOutput `"`saving'"' ssc2_describe_u `"`pkgname'"' `"`url'"' `"`ref'"' `"`shown'"' `"`api'"'
 	if `"`s(loggedfn)'"' != "" {
 		di as txt `"(output saved in `s(loggedfn)')"'
 	}
 end
 
-program define ssc2describe_u
-	args pkgname ssc2url ssc2date
-	local ltr = bsubstr(`"`pkgname'"',1,1)
+program define ssc2_describe_u
+	args pkgname url ref shown api
+	local ltr = substr(`"`pkgname'"', 1, 1)
 	if length(`"`pkgname'"')==1 {
-		net from `ssc2url'`ltr'
+		capture noisily net from `url'`ltr'
+		if _rc {
+			DiagnoseSnapshot `"`url'`ltr'"' `"`ref'"' `=_rc' `"`api'"'
+		}
 		di as txt /*
-*/ "(type {cmd:ssc2 describe} {it:pkgname} for more information on {it:pkgname})"
+*/ "(type {cmd:ssc2 describe} {it:pkgname}{cmd:, date(`ref')} for more information on {it:pkgname})"
 	}
 	else {
-		qui net from `ssc2url'`ltr'
+		capture quietly net from `url'`ltr'
+		if _rc {
+			DiagnoseSnapshot `"`url'`ltr'"' `"`ref'"' `=_rc' `"`api'"'
+		}
 		capture net describe `pkgname'
 		local rc = _rc
-		if _rc==601 | _rc==661  {
+		if `rc'==601 | `rc'==661 {
 			di as err /*
-*/ `"{bf:ssc2 describe}: "{bf:`pkgname'}" not found at SSC, type {stata search `pkgname'}"'
+*/ `"{bf:ssc2 describe}: "{bf:`pkgname'}" not found in snapshot `shown'"'
 			di as err /*
-*/ "(To find all packages at SSC that start with `ltr', type {stata ssc2 describe `ltr'})"
+*/ "(To find all packages in this snapshot that start with `ltr', type {stata ssc2 describe `ltr', date(`ref')})"
+			exit `rc'
 		}
-		if _rc==0 {
+		if `rc'==0 {
 			net describe `pkgname'
 			di as txt /*
-			*/ "(type {stata ssc2 install `pkgname', date(`ssc2date')} to install)"
+*/ "(type {stata ssc2 install `pkgname', date(`ref')} to install)"
 		}
 		exit `rc'
 	}
 end
 
 
-program define ssc2install
-	* ssc2 install <package> [, <net_install_options> DATE(string asis)]
+program define ssc2_install
+	* ssc2 install <package> [, all replace date() from() <net_install opts>]
 	gettoken pkgname 0 : 0, parse(" ,")
 	CheckPkgname "ssc2 install" `"`pkgname'"'
 	local pkgname `"`s(pkgname)'"'
-	syntax [, ALL REPLACE DATE(string asis)]
-	local ltr = bsubstr("`pkgname'",1,1)
-	if `"`date'"' != "" {
-		ProcSSCDate `date'
-		local ssc2date `"`r(ssc2date)'"'
-		local ssc2url  `"`r(ssc2url)'"'
-	}
-	else {
-		local ssc2url "http://${repecadr}"
+	syntax [, ALL REPLACE DATE(string) FROM(string) *]
+
+	* no snapshot requested: delegate fully to official ssc
+	if `"`date'`from'"'=="" {
+		ssc install `pkgname', `all' `replace' `options'
+		exit
 	}
 
-	qui net from `ssc2url'`ltr'
+	ResolveSnapshot, date(`date') from(`from')
+	local ref   `"`r(ref)'"'
+	local shown `"`r(shown)'"'
+	local url   `"`r(url)'"'
+	local api   `"`r(api)'"'
+	local ltr = substr("`pkgname'", 1, 1)
+
+	capture quietly net from `url'`ltr'
+	if _rc {
+		DiagnoseSnapshot `"`url'`ltr'"' `"`ref'"' `=_rc' `"`api'"'
+	}
 	capture net describe `pkgname'
 	local rc = _rc
-	if _rc==601 | _rc==661 {
+	if `rc'==601 | `rc'==661 {
 		di as err /*
-*/ `"{bf:ssc2 install}: "{bf:`pkgname'}" not found at SSC"'
-        di as err `" at `ssc2url'"'
-        di as err `" type {stata search `pkgname'}"'
+*/ `"{bf:ssc2 install}: "{bf:`pkgname'}" not found in snapshot `shown'"'
+		di as err `"  at `url'"'
 		di as err /*
-*/ "(To find all packages at SSC that start with `ltr', type {stata ssc2 describe `ltr'})"
+*/ "(To find all packages in this snapshot that start with `ltr', type {stata ssc2 describe `ltr', date(`ref')})"
 		exit `rc'
 	}
-	if _rc {
+	if `rc' {
 		error `rc'
 	}
 
-	if "`ssc2date'" != "" {
-		di as result `"snapshot selected: `ssc2date'"'
-	}
-	di as result `"installing from  `ssc2url'..."'
-	capture noi net install `pkgname', `all' `replace'
+	di as result `"snapshot selected: `shown'"'
+	di as result `"installing from  `url'..."'
+	capture noisily net install `pkgname', `all' `replace' `options'
 	local rc = _rc
-	if _rc==601 | _rc==661 {
+	if `rc'==601 | `rc'==661 {
 		di
 		di as err /*
-*/ `"{p}{bf:ssc2 install}: apparent error in package file for {bf:`pkgname'}; please notify {browse "mailto:repec@repec.org":repec@repec.org}, providing package name{p_end}"'
+*/ `"{p}{bf:ssc2 install}: apparent error in the package file for {bf:`pkgname'} in this snapshot; please open an issue at {browse "https://github.com/labordynamicsinstitute/ssc-mirror/issues":the mirror repository}, providing the package name and date{p_end}"'
 	}
 	exit `rc'
 end
 
 
-program define ssc2copy
-	* ssc2 copy <filename> [, plus personal <copy_options>]
-	*
+program define ssc2_copy
+	* ssc2 copy <filename> [, plus personal <copy_options> date() from()]
 	* backwards compatibility: sjplus and stbplus are synonyms for plus
-
 	gettoken fn 0 : 0, parse(" ,")
 	CheckFilename "ssc2 copy" `"`fn'"'
 	local fn `"`s(fn)'"'
-	syntax [, PUBlic BINary REPLACE STBplus SJplus PLus Personal]
+	syntax [, PUBlic BINary REPLACE STBplus SJplus PLus Personal ///
+	          DATE(string) FROM(string)]
 
-	local text = cond("`binary'"=="","text","")
+	* no snapshot requested: delegate fully to official ssc
+	if `"`date'`from'"'=="" {
+		ssc copy `fn', `public' `binary' `replace' `stbplus' `sjplus' `plus' `personal'
+		exit
+	}
+
+	ResolveSnapshot, date(`date') from(`from')
+	local url `"`r(url)'"'
+
+	local text = cond("`binary'"=="", "text", "")
 
 	local op "stbplus"
 	if "`sjplus'" != "" {
@@ -240,10 +369,9 @@ program define ssc2copy
 		di as err "options {bf:`op'} and {bf:personal} may not be specified together"
 		exit 198
 	}
-	local ltr = bsubstr(`"`fn'"',1,1)
+	local ltr = substr(`"`fn'"', 1, 1)
 
-
-	if "`stbplus'"!="" {
+	if "`stbplus'" != "" {
 		local dir : sysdir STBPLUS
 		local dirsep : dirsep
 		local dir `"`dir'`ltr'`dirsep'"'
@@ -258,39 +386,69 @@ program define ssc2copy
 		local dfn `"`fn'"'
 	}
 
-	capture copy `"https://${ssc2prefix}${ssc2url}`ltr'/`fn'"' /*
-		*/ `"`dfn'"' , `public' `text' `replace'
+	capture copy `"`url'`ltr'/`fn'"' `"`dfn'"', `public' `text' `replace'
 	local rc = _rc
-	if _rc==601 | _rc==661 {
+	if `rc'==601 | `rc'==661 {
 		di as err /*
-	*/ `"{bf:ssc2 copy}: "{bf:`fn'}" not found at ssc2, type {stata search `fn'}"'
+*/ `"{bf:ssc2 copy}: "{bf:`fn'}" not found in snapshot at `url'`ltr'/"'
 		exit `rc'
 	}
-	if _rc {
+	if `rc' {
 		error `rc'
 	}
 	di as txt "(file `fn' copied to `dir')"
 end
 
 
-program define ssc2type
+program define ssc2_type
 	gettoken fn 0 : 0, parse(" ,")
-	syntax [, ASIS]
+	syntax [, ASIS DATE(string) FROM(string)]
 	CheckFilename "ssc2 type" `"`fn'"'
 	local fn `"`s(fn)'"'
-	local ltr = bsubstr(`"`fn'"',1,1)
-	capture type `"https://${ssc2prefix}${ssc2url}`ltr'/`fn'"'
+
+	* no snapshot requested: delegate fully to official ssc
+	if `"`date'`from'"'=="" {
+		ssc type `fn', `asis'
+		exit
+	}
+
+	ResolveSnapshot, date(`date') from(`from')
+	local url `"`r(url)'"'
+	local ltr = substr(`"`fn'"', 1, 1)
+
+	capture type `"`url'`ltr'/`fn'"'
 	local rc = _rc
-	if _rc==601 | _rc==661 {
+	if `rc'==601 | `rc'==661 {
 		di as err /*
-	*/ `"{bf:ssc2 type}: "{bf:`fn'}" not found at ssc2, type {stata search `fn'}"'
+*/ `"{bf:ssc2 type}: "{bf:`fn'}" not found in snapshot at `url'`ltr'/"'
 		exit `rc'
 	}
-	if _rc {
+	if `rc' {
 		error `rc'
 	}
-	type `"https://${ssc2prefix}${ssc2url}`ltr'/`fn'"', `asis'
+	type `"`url'`ltr'/`fn'"', `asis'
 end
+
+
+program define ssc2_snapshots
+	* informational for now; a machine-readable exceptions file is planned
+	syntax [, FROM(string)]
+	di as txt "Snapshots of the SSC archive are stored as date-stamped git tags"
+	di as txt "(YYYY-MM-DD) in the mirror repository:"
+	di as txt `"    {browse "https://github.com/labordynamicsinstitute/ssc-mirror/tags"}"'
+	di
+	di as txt "  - daily snapshots exist from {bf:2021-12-21} onward, with occasional"
+	di as txt `"    gaps listed in the mirror's {browse "https://github.com/labordynamicsinstitute/ssc-mirror/blob/main/ERRATA.md":ERRATA}"'
+	di as txt "  - three earlier snapshots exist: {bf:2017-08-10}, {bf:2021-04-15}, {bf:2021-08-10}"
+	di as txt "  - {bf:date(latest)} uses the most recent mirrored state"
+	di
+	di as txt "The mirror location can be overridden with the {bf:from()} option,"
+	di as txt "the Stata global {bf:SSC2_MIRROR}, or the environment variable of"
+	di as txt "the same name (see help {help ssc2})."
+	di
+	di as txt "Example:  {stata ssc2 install reghdfe, date(2022-01-07)}"
+end
+
 
 
 program define CheckPkgname, sclass
@@ -301,12 +459,12 @@ program define CheckPkgname, sclass
 		exit 198
 	}
 	if length(`"`pkgname'"')==1 {
-		di as err `"{bf:`id'}: "{bf:`pkgname'}" invalid ssc2 package name"'
+		di as err `"{bf:`id'}: "{bf:`pkgname'}" invalid package name"'
 		exit 198
 	}
 	local pkgname = lower(`"`pkgname'"')
-	if !index("abcdefghijklmnopqrstuvwxyz_",bsubstr(`"`pkgname'"',1,1)) {
-		di as err `"{bf:`id'}: "{bf:`pkgname'}" invalid ssc2 package name"'
+	if !index("abcdefghijklmnopqrstuvwxyz_", substr(`"`pkgname'"',1,1)) {
+		di as err `"{bf:`id'}: "{bf:`pkgname'}" invalid package name"'
 		exit 198
 	}
 	sret local pkgname `"`pkgname'"'
@@ -320,12 +478,12 @@ program define CheckFilename, sclass
 		exit 198
 	}
 	if length(`"`fn'"')==1 {
-		di as err `"{bf:`id'}: "{bf:`fn'}" invalid ssc2 filename"'
+		di as err `"{bf:`id'}: "{bf:`fn'}" invalid filename"'
 		exit 198
 	}
 	local fn = lower(`"`fn'"')
-	if !index("abcdefghijklmnopqrstuvwxyz_",bsubstr(`"`fn'"',1,1)) {
-		di as err `"{bf:`id'}: "{bf:`fn'}" invalid ssc2 filename"'
+	if !index("abcdefghijklmnopqrstuvwxyz_", substr(`"`fn'"',1,1)) {
+		di as err `"{bf:`id'}: "{bf:`fn'}" invalid filename"'
 		exit 198
 	}
 	sret local fn `"`fn'"'
