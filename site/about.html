@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About — ssc2</title>
+<style>
+  :root{--navy:#123a63;--ink:#20242a;--muted:#5c6572;--paper:#fafbfc;
+    --line:#d7dde4;--accent:#1b6fae;--navy-soft:#e8eef5;
+    --console-bg:#171b21;--console-ink:#e6e9ec}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);
+    font:16px/1.6 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    padding:2.5rem 1.25rem 4rem}
+  main{max-width:700px;margin:0 auto}
+  .topnav{background:var(--navy);margin:-2.5rem -1.25rem 2.2rem;padding:0 1.25rem}
+  .nav-inner{max-width:700px;margin:0 auto;display:flex;gap:1.4rem;align-items:center}
+  .topnav a{color:#c8d8e8;text-decoration:none;font-size:.9rem;padding:.7rem 0}
+  .topnav a:hover{color:#fff}
+  .topnav a.on{color:#fff;font-weight:600;box-shadow:inset 0 -3px 0 #fff}
+  .topnav .brand{font-family:ui-monospace,Consolas,Menlo,monospace;font-weight:700;
+    font-size:1rem;color:#fff}
+  h1,h2{font-family:Charter,Georgia,"Times New Roman",serif;color:var(--navy)}
+  h1{font-size:1.9rem;margin-bottom:.4rem}
+  h2{font-size:1.25rem;margin:1.9rem 0 .6rem}
+  p{margin:.6rem 0}
+  .lede{color:var(--muted)}
+  code{font-family:ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;
+    font-size:.9em;color:var(--navy)}
+  pre{background:var(--console-bg);color:var(--console-ink);border-radius:8px;
+    padding:.9rem 1.1rem;font:.87rem/1.6 ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;
+    overflow-x:auto;margin:.7rem 0}
+  a{color:var(--accent)}
+  ul{margin:.6rem 0 .6rem 1.4rem}
+  li{margin:.35rem 0}
+</style>
+</head>
+<body>
+<nav class="topnav"><div class="nav-inner">
+  <a class="brand" href="index.html">ssc2</a>
+  <a class="on" href="about.html">About</a>
+  <a href="reference.html">Reference</a>
+  <a href="articles.html">Articles</a>
+</div></nav>
+<main>
+<h1>ssc2</h1>
+<p class="lede">Install Stata packages from date-based snapshots of the
+SSC archive.</p>
+
+<h2>What it does</h2>
+<p>The SSC archive keeps only the current version of each package: when
+an author uploads an update, the previous version is gone. That makes it
+hard to re-run older analyses with the package versions they were
+written against. <code>ssc2</code> closes that gap. It is a drop-in
+replacement for Stata's built-in <code>ssc</code> command that can
+install packages <i>as they existed on a given date</i>, using daily
+snapshots of the archive stored in the
+<a href="https://github.com/labordynamicsinstitute/ssc-mirror">ssc-mirror</a>
+repository &mdash; the same idea that dated CRAN snapshots brought to
+the R ecosystem.</p>
+<p>When no date is requested, <code>ssc2</code> simply delegates to the
+official <code>ssc</code> command, so existing workflows keep working
+unchanged.</p>
+
+<h2>Installation</h2>
+<pre>net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/main")</pre>
+
+<h2>Quick example</h2>
+<pre>* the version of reghdfe that was current on 7 January 2022
+ssc2 install reghdfe, date(2022-01-07)
+
+* without date(), identical to -ssc install-
+ssc2 install reghdfe, replace</pre>
+<p>The <a href="index.html">snapshot picker</a> on the home page writes
+these commands for you. Snapshot coverage is daily from 2021-12-21, with
+a few earlier snapshots and known exceptions listed in the mirror's
+<a href="https://github.com/labordynamicsinstitute/ssc-mirror/blob/main/ERRATA.md">ERRATA</a>.</p>
+
+<h2>Custom mirrors</h2>
+<p>Institutions can host an internal clone of the snapshot mirror
+(same layout) and point <code>ssc2</code> at it with the
+<code>from()</code> option, or globally via the <code>SSC2_MIRROR</code>
+Stata global or environment variable &mdash; see the
+<a href="reference.html">Reference</a> for details.</p>
+
+<h2>Links</h2>
+<ul>
+<li>Source: <a href="https://github.com/labordynamicsinstitute/stata-ssc2">github.com/labordynamicsinstitute/stata-ssc2</a></li>
+<li>Snapshot mirror: <a href="https://github.com/labordynamicsinstitute/ssc-mirror">github.com/labordynamicsinstitute/ssc-mirror</a></li>
+<li>Issues and support: <a href="https://github.com/labordynamicsinstitute/stata-ssc2/issues">issue tracker</a></li>
+<li>License: see <a href="https://github.com/labordynamicsinstitute/stata-ssc2/blob/main/LICENSE">LICENSE</a></li>
+</ul>
+
+<h2>Authors</h2>
+<p>Lars Vilhuber (Labor Dynamics Institute, Cornell University) and
+contributors.</p>
+
+<h2>Citation</h2>
+<p>A software article is in preparation; until it appears, please cite
+the GitHub repository.</p>
+</main>
+</body>
+</html>

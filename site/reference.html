@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference — ssc2</title>
+<style>
+  :root{--navy:#123a63;--ink:#20242a;--muted:#5c6572;--paper:#fafbfc;
+    --line:#d7dde4;--accent:#1b6fae;--navy-soft:#e8eef5}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);
+    font:16px/1.6 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    padding:2.5rem 1.25rem 4rem}
+  main{max-width:700px;margin:0 auto}
+  .topnav{background:var(--navy);margin:-2.5rem -1.25rem 2.2rem;padding:0 1.25rem}
+  .nav-inner{max-width:700px;margin:0 auto;display:flex;gap:1.4rem;align-items:center}
+  .topnav a{color:#c8d8e8;text-decoration:none;font-size:.9rem;padding:.7rem 0}
+  .topnav a:hover{color:#fff}
+  .topnav a.on{color:#fff;font-weight:600;box-shadow:inset 0 -3px 0 #fff}
+  .topnav .brand{font-family:ui-monospace,Consolas,Menlo,monospace;font-weight:700;
+    font-size:1rem;color:#fff}
+  h1,h2{font-family:Charter,Georgia,"Times New Roman",serif;color:var(--navy)}
+  h1{font-size:1.8rem;margin-bottom:.3rem}
+  h2{font-size:1.25rem;margin:1.8rem 0 .6rem;border-bottom:1px solid var(--line);
+    padding-bottom:.25rem}
+  p{margin:.55rem 0}
+  p.hang{padding-left:1.6rem;text-indent:-1.6rem;margin:.65rem 0}
+  p.syn{font-family:ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;
+    font-size:.88rem;background:var(--navy-soft);border-radius:6px;
+    padding:.55rem .8rem;margin:.4rem 0}
+  p.manhead{color:var(--muted);font-size:.9rem}
+  code{font-family:ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;
+    font-size:.9em;color:var(--navy)}
+  a{color:var(--accent)}
+  .gennote{margin-top:2.5rem;font-size:.8rem;color:var(--muted);
+    border-top:1px solid var(--line);padding-top:.8rem}
+</style>
+</head>
+<body>
+<nav class="topnav"><div class="nav-inner">
+  <a class="brand" href="index.html">ssc2</a>
+  <a href="about.html">About</a>
+  <a class="on" href="reference.html">Reference</a>
+  <a href="articles.html">Articles</a>
+</div></nav>
+<main>
+<h1>Reference</h1>
+<p class="manhead">Web rendering of the Stata help file (<code>help ssc2</code>).</p>
+<p>{vieweralsosee "[R] ssc2" "mansection R ssc2"} {vieweralsosee "" "--"} {vieweralsosee "[R] ssc" "help ado update"} {viewerjumpto "Syntax" "ssc2##syntax"} {viewerjumpto "Description" "ssc2##description"} {viewerjumpto "Command overview" "ssc2##overview"} {viewerjumpto "Option for use with ssc2 describe" "ssc2##option_ssc2_describe"} {viewerjumpto "Options for use with ssc2 install" "ssc2##options_ssc2_install"} {viewerjumpto "Option for use with ssc2 type" "ssc2##option_ssc2_type"} {viewerjumpto "Options for use with ssc2 copy" "ssc2##options_ssc2_copy"} {viewerjumpto "Remarks" "ssc2##remarks"} {viewerjumpto "Examples" "ssc2##examples"}</p>
+<p class="manhead">{bf:ssc2  &mdash;}Install and uninstall packages from SSC, including from date-based snapshots of an SSC mirror</p>
+<p><a id="syntax"></a></p>
+<h2>Syntax</h2>
+<p class="hang">Describe a specified package at SSC mirror</p>
+<p class="syn"><code>ssc2</code> <code>describe</code> &#123; <i>pkgname</i> | <i>letter</i> &#125; [<code>,</code> <code>saving(</code><i><code>filename</code></i>[<code>, replace</code>]<code>)</code> <code>date(datespec)</code> <code>from(url)</code>]</p>
+<p class="hang">Install a specified package from SSC mirror</p>
+<p class="syn"><code>ssc2</code> <code>install</code> <i>pkgname</i> [<code>,</code> <code>all</code> <code>replace</code> <code>date(datespec)</code> <code>from(url)</code>]</p>
+<p class="hang">Type a specific file stored at SSC mirror</p>
+<p class="syn"><code>ssc2</code> <code>type</code> <i><code>filename</code></i> [<code>, asis</code> <code>date(datespec)</code> <code>from(url)</code>]</p>
+<p class="hang">Copy a specific file from SSC mirror to your computer</p>
+<p class="syn"><code>ssc2</code> <code>copy</code> <i><code>filename</code></i> [<code>,</code> <code>plus</code> <code>personal</code> <code>replace</code> <code>public</code> <code>binary</code> <code>date(datespec)</code> <code>from(url)</code>]</p>
+<p class="syn">where <i>letter</i> in <code>ssc2 describe</code> is <code>a</code>-<code>z</code> or <code>_</code>, and <i>datespec</i> is a date in <b>YYYY-MM-DD</b> format or the word <b>latest</b>.</p>
+<p><a id="description"></a></p>
+<h2>Description</h2>
+<p><code>ssc2</code> works with packages (and files) from the Statistical Software Components (SSC) archive.  It extends the official <code>ssc</code> command with the ability to install packages <i>as they existed on a given date</i>, using date-based snapshots of the SSC archive stored in the <a href="https://github.com/labordynamicsinstitute/ssc-mirror">ssc-mirror</a> repository.  This supports reproducibility: an analysis can be re-run with the exact package versions that were current at a given date.</p>
+<p>When neither <code>date()</code> nor <code>from()</code> is specified, <code>ssc2</code> delegates to the official <code>ssc</code> command, so <code>ssc2</code> behaves as a strict superset of <code>ssc</code>.  The subcommands <code>new</code>, <code>hot</code>, and <code>uninstall</code> are always delegated to <code>ssc</code>.</p>
+<p>Daily snapshots exist from <b>2021-12-21</b> onward; three earlier snapshots exist (<b>2017-08-10</b>, <b>2021-04-15</b>, <b>2021-08-10</b>).  Type <code>ssc2 snapshots</code> for details.</p>
+<p>You can uninstall particular packages by using <code>ssc2</code> <code>uninstall</code>. For the packages that you keep, see <code>[R] ado update</code> for an automated way of keeping those packages up to date.</p>
+<p><a id="linkspdf"></a></p>
+<h2>Links to PDF documentation</h2>
+<p>Quick start</p>
+<p>Remarks and examples</p>
+<p>The above sections are not included in this help file.</p>
+<p><a id="overview"></a></p>
+<h2>Command overview</h2>
+<p class="hang"><code>ssc2 describe</code> <i>pkgname</i> describes, but does not install, the specified     package.  Use <code>search</code> to find packages; see .  If     you know the package name but do not know the exact spelling, type     <code>ssc2 describe</code> followed by one letter, <code>a</code>-<code>z</code> or <code>_</code>     (underscore), to list all the packages starting with that letter.</p>
+<p class="hang"><code>ssc2 install</code> <i>pkgname</i> installs the specified package.  You do not     have to describe a package before installing it.  (You may also     install a package by using <code>net</code> <code>install</code>; see .)</p>
+<p class="hang"><code>ssc2 uninstall</code> <i>pkgname</i> removes the previously installed     package from your computer.  It does not matter how the package was     installed.  (<code>ssc2 uninstall</code> is a synonym for <code>ado uninstall</code>, so     either may be used to uninstall any package.)</p>
+<p class="hang"><code>ssc2 type</code> <i><code>filename</code></i> types a specific file stored at ssc2.     <code>ssc2 cat</code> is a synonym for <code>ssc2 type</code>, which may appeal to those     familiar with Unix.</p>
+<p class="hang"><code>ssc2 copy</code> <i>filename</i> copies a specific file stored at ssc2 to your     computer.  By default, the file is copied to the current directory, but     you can use options to change this.  <code>ssc2 copy</code> is a rarely used     alternative to <code>ssc2 install</code> ...<code>, all</code>.  <code>ssc2 cp</code> is a     synonym for <code>ssc2 copy</code>.</p>
+<p><a id="options_ssc2_new"></a></p>
+<h2>Options for use with ssc2 new</h2>
+<p class="hang"><code>saving(</code><i><code>filename</code></i>[<code>, replace</code>]<code>)</code> specifies that the     "what's new" summary be saved in <i>filename</i>.  If <i>filename</i> is     specified without a suffix, <i>filename</i><code>.smcl</code> is assumed.  If     <code>saving()</code> is not specified, <code>saving(ssc2_result.smcl)</code> is assumed.</p>
+<p class="hang"><code>type</code> specifies that the "what's new" results be displayed in the     Results window rather than in the Viewer.</p>
+<p><a id="options_ssc2_hot"></a></p>
+<h2>Options for use with ssc2 hot</h2>
+<p class="hang"><code>n(</code><i>#</i><code>)</code>     specifies the number of packages to list; <code>n(10)</code> is the default.     Specify <code>n(.)</code> to list all packages in order of popularity.</p>
+<p class="hang"><code>author(</code><i>name</i><code>)</code>      lists the 10 most popular packages by the specified author.      If <code>n(</code><i>#</i><code>)</code> is also specified, the top <i>#</i>      packages are listed.</p>
+<p><a id="options_snapshot"></a></p>
+<h2>Options for selecting a snapshot (describe, install, type, copy)</h2>
+<p class="hang"><code>date(datespec)</code> selects the snapshot of the SSC archive as of the     specified date.  <i>datespec</i> is either a date in <b>YYYY-MM-DD</b>     format (for example, <code>date(2022-01-07)</code>) or <b>latest</b>, which uses     the most recently mirrored state of the archive.  If no snapshot exists     for the specified date, an error message points to the     <a href="https://github.com/labordynamicsinstitute/ssc-mirror/tags">list of available snapshot dates</a>.</p>
+<p class="hang"><code>from(url)</code> specifies the base URL of the snapshot mirror.     If <code>from()</code> is not specified, the URL is taken from the Stata     global <code>SSC2_MIRROR</code> if that is set; otherwise from the     environment variable <code>SSC2_MIRROR</code> if that is set; otherwise the     built-in default     <code>https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror</code>     is used.  The overrides exist because the mirror may move to a     different host; they also let you point at your own clone, which must     use the same layout     (<i>url</i><code>/</code><i>ref</i><code>/fmwww.bc.edu/repec/bocode/</code>).     The analogous <code>SSC2_MIRROR_API</code> global or environment variable     overrides the API endpoint used only for diagnosing failed snapshot     lookups.</p>
+<p><a id="option_ssc2_describe"></a></p>
+<h2>Option for use with ssc2 describe</h2>
+<p class="hang"><code>saving(</code><i><code>filename</code></i>[<code>, replace</code>]<code>)</code> specifies that, in      addition to the description's being displayed on your screen, it be saved      in the specified file.</p>
+<p class="hang">If <i>filename</i> is specified without an extension, <code>.smcl</code> will be     assumed, and the file will be saved as a <code>SMCL</code> file.</p>
+<p class="hang">If <i>filename</i> is specified with an extension, no default extension     is added.  If the extension is <code>.log</code>, the file will be stored as     a text file.</p>
+<p class="hang">If <code>replace</code> is specified, <i>filename</i> is replaced if it already     exists.</p>
+<p><a id="options_ssc2_install"></a></p>
+<h2>Options for use with ssc2 install</h2>
+<p class="hang"><code>all</code> specifies that any ancillary files associated with the     package be downloaded to your current directory, in addition     to the program and help files being installed.  Ancillary files are files     that do not end in <code>.ado</code> or <code>.sthlp</code> and typically contain     datasets or examples of the use of the new command.</p>
+<p class="hang">You can find out which files are associated with the package by typing     <code>ssc2 describe</code> <i>pkgname</i> before or after installing.  If you     install without using the <code>all</code> option and then want the ancillary     files, you can <code>ssc2 install</code> again.</p>
+<p class="hang"><code>replace</code> specifies that any files being downloaded that already exist     on your computer be replaced by the downloaded files.  If     <code>replace</code> is not specified and any files already exist, none of the     files from the package is downloaded or installed.</p>
+<p class="hang">It is better not to specify the <code>replace</code> option and wait to see if     there is a problem.  If there is a problem, it is usually better to     uninstall the old package by using <code>ssc2 uninstall</code> or     <code>ado uninstall</code> (which are, in fact, the same command).</p>
+<p><a id="option_ssc2_type"></a></p>
+<h2>Option for use with ssc2 type</h2>
+<p class="hang"><code>asis</code> affects how files with the suffixes <code>.smcl</code>     and <code>.sthlp</code> are displayed.  The default is to interpret SMCL     directives the file might contain.  <code>asis</code> specifies that the file be     displayed in raw, uninterpreted form.</p>
+<p><a id="options_ssc2_copy"></a></p>
+<h2>Options for use with ssc2 copy</h2>
+<p class="hang"><code>plus</code> specifies that the     file be copied to the <code>PLUS</code> directory, the directory where     community-contributed additions are installed.  Typing <code>sysdir</code>     will display the identity of the <code>PLUS</code> directory on your computer.</p>
+<p class="hang"><code>personal</code> specifies that the file be copied to your <code>PERSONAL</code>     directory as reported by <code>sysdir</code>.</p>
+<p class="hang">If neither <code>plus</code> nor <code>personal</code> is specified,     the default is to copy the file to the current directory.</p>
+<p class="hang"><code>replace</code> specifies that, if the file already exists on your computer,     the new file replace it.</p>
+<p class="hang"><code>public</code> specifies that the new file be made readable by everyone;     otherwise, the file will be created according to the default permission you     have set with your operating system.</p>
+<p class="hang"><code>binary</code> specifies that the file being copied is a binary file and that it     is to be copied as is.  The default is to assume that the file is a text     file and change the end-of-line characters to those appropriate for your     computer/operating system.</p>
+<p><a id="remarks"></a></p>
+<h2>Remarks</h2>
+<p>Users can add new features to Stata, and some users choose to make new features that they have written available to others via the web.  The files that comprise a new feature are called a package, and a package usually consists of one or more ado-files and help files.  The <code>net</code> command makes it reasonably easy to install and uninstall packages regardless of where they are on the web.  One site, the ssc2, has become particularly popular as a repository for additions to Stata.  Command <code>ssc2</code> is an easier to use version of <code>net</code> designed especially for the ssc2.</p>
+<p>Many packages are available at the ssc2.  Packages are named, such as <b>oaxaca</b>, <b>estout</b>, or <b>egenmore</b>.  At ssc2, capitalization is not significant, so <b>Oaxaca</b>, <b>ESTOUT</b>, and <b>EGENmore</b> are ways of writing the same package names.</p>
+<p>When you type</p>
+<p><code>. ssc2 install oaxaca</code></p>
+<p>the files associated with the package are downloaded and installed on your computer.  Package names usually correspond to the names of the commands being added to Stata, so one would expect that installing the package <b>oaxaca</b> will add command <code>oaxaca</code> to Stata on your computer, and expect that typing <code>help oaxaca</code> will provide the documentation.  That is the situation here, but that is not always so.  Before or after installing a package, type <code>ssc2 describe</code> <i>pkgname</i> to obtain the details.</p>
+<p><a id="examples"></a></p>
+<h2>Examples</h2>
+<p>Describe most recently added or updated packages at ssc2 <code>. ssc2 new</code></p>
+<p>Describe the most popular packages at ssc2 <code>. ssc2 hot</code></p>
+<p>Describe the package <code>oaxaca</code> <code>. ssc2 describe oaxaca</code></p>
+<p>Describe the package <code>oaxaca</code> and save the description to the file <code>oaxaca.log</code></p>
+<p><code>. ssc2 describe oaxaca, saving(oaxaca.log)</code></p>
+<p>List all packages, along with a brief description, that begin with the letter <code>o</code></p>
+<p><code>. ssc2 describe o</code></p>
+<p>Same as above, but also save the listing to the file <code>o.index</code> <code>. ssc2 describe o, saving(o.index)</code></p>
+<p>Install package <code>oaxaca</code> <code>. ssc2 install oaxaca</code></p>
+<p>Uninstall previously installed package <code>oaxaca</code> <code>. ssc2 uninstall oaxaca</code></p>
+<p>Type file <code>whitetst.hlp</code> that is stored at ssc2 <code>. ssc2 type whitetst.hlp</code></p>
+<p>Copy file <code>whitetst.ado</code> from ssc2 to your computer <code>. ssc2 copy whitetst.ado</code></p>
+<p class="gennote">Generated automatically from
+<code>sthlp/ssc2.sthlp</code> on 2026-07-22. The in-Stata help file is the
+authoritative version.</p>
+</main>
+</body>
+</html>

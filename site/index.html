@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SSC snapshot picker — ssc2</title>
+<style>
+  :root{
+    --navy:#123a63;        /* Stata-GUI navy */
+    --navy-soft:#e8eef5;
+    --ink:#20242a;
+    --muted:#5c6572;
+    --paper:#fafbfc;
+    --line:#d7dde4;
+    --console-bg:#171b21;  /* Stata dark results window */
+    --console-ink:#e6e9ec;
+    --console-dim:#8a949f;
+    --console-good:#7fd08c;/* Stata result green */
+    --console-err:#e07a7a; /* Stata error red */
+    --accent:#1b6fae;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--paper);color:var(--ink);
+    font:16px/1.55 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  main{max-width:700px;margin:0 auto}
+  h1{
+    font-family:Charter,Georgia,"Times New Roman",serif;
+    font-size:2rem;font-weight:700;letter-spacing:-.01em;color:var(--navy);
+  }
+  .kicker{
+    font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:.4rem;
+  }
+  .lede{color:var(--muted);margin:.6rem 0 2rem;max-width:56ch}
+  .lede code{font-family:ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;font-size:.9em;color:var(--navy)}
+
+  fieldset{border:1px solid var(--line);border-radius:8px;background:#fff;
+    padding:1.25rem 1.25rem 1.4rem;margin-bottom:1.1rem}
+  legend{font-family:Charter,Georgia,serif;font-weight:700;color:var(--navy);
+    padding:0 .5rem;font-size:1.05rem}
+  label{display:block;font-size:.85rem;font-weight:600;margin-bottom:.35rem}
+  .hint{font-size:.8rem;color:var(--muted);font-weight:400}
+  input[type=text]{
+    width:100%;padding:.55rem .7rem;border:1px solid var(--line);border-radius:6px;
+    font:inherit;font-family:ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;font-size:.95rem;
+  }
+  input[type=text]:focus,input[type=date]:focus,input[type=range]:focus-visible,
+  button:focus-visible,input[type=checkbox]:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px}
+  .row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+  .check{display:flex;gap:.55rem;align-items:flex-start;font-weight:400;font-size:.9rem;cursor:pointer}
+  .check input{margin-top:.22rem;accent-color:var(--navy)}
+  .check b{font-weight:600}
+
+  /* autocomplete */
+  .acwrap{position:relative}
+  #ac{position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:6;display:none;
+    background:#fff;border:1px solid var(--line);border-radius:6px;
+    box-shadow:0 8px 20px rgba(18,58,99,.14);max-height:15rem;overflow-y:auto}
+  .ac-item{padding:.4rem .75rem;cursor:pointer;
+    font:.9rem ui-monospace,"Cascadia Code",Consolas,Menlo,monospace}
+  .ac-item.sel,.ac-item:hover{background:var(--navy-soft);color:var(--navy)}
+
+  /* timeline */
+  .timeline{margin-top:.9rem}
+  input[type=range]{width:100%;accent-color:var(--navy);cursor:pointer}
+  .tl-labels{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);
+    font-family:ui-monospace,Consolas,Menlo,monospace;margin-top:.15rem}
+  .tl-readout{
+    display:flex;gap:.9rem;align-items:baseline;margin-top:.6rem;flex-wrap:wrap}
+  .tl-date{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:1.25rem;
+    font-weight:700;color:var(--navy)}
+  .snapnote{font-size:.8rem;color:#8a6d1f;background:#fbf3da;border-radius:4px;
+    padding:.1rem .45rem;display:none}
+  .snapnote.show{display:inline-block}
+  input[type=date]{padding:.35rem .5rem;border:1px solid var(--line);border-radius:6px;
+    font:inherit;font-size:.85rem}
+  .disabledzone{opacity:.45}
+  input:disabled{cursor:not-allowed}
+  .check input:disabled + span{opacity:.5}
+
+  /* the signature: Stata results window */
+  .results{
+    background:var(--console-bg);border-radius:8px;overflow:hidden;
+    box-shadow:0 6px 24px rgba(18,58,99,.18)}
+  .results-bar{
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--navy);color:#dce7f2;font-size:.75rem;
+    letter-spacing:.08em;text-transform:uppercase;padding:.45rem .9rem}
+  .results-bar button{
+    font:inherit;letter-spacing:.08em;text-transform:uppercase;
+    background:transparent;border:1px solid rgba(255,255,255,.45);color:#fff;
+    border-radius:4px;padding:.2rem .7rem;cursor:pointer}
+  .results-bar button:hover{background:rgba(255,255,255,.12)}
+  pre{
+    padding:1rem 1.1rem 1.15rem;color:var(--console-ink);
+    font:0.88rem/1.65 ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;
+    white-space:pre-wrap;word-break:break-all}
+  pre .p{color:var(--console-dim)}          /* the ". " prompt */
+  pre .cm{color:var(--console-dim);font-style:italic}
+  pre .opt{color:var(--console-good)}
+  pre .err{color:var(--console-err)}
+  .cursor{display:inline-block;width:.55em;height:1.05em;background:var(--console-ink);
+    vertical-align:-0.15em;animation:blink 1.1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.cursor{animation:none}}
+
+  .topnav{background:var(--navy);margin:-2.5rem -1.25rem 2.2rem;padding:0 1.25rem}
+  .nav-inner{max-width:700px;margin:0 auto;display:flex;gap:1.4rem;align-items:center}
+  .topnav a{color:#c8d8e8;text-decoration:none;font-size:.9rem;padding:.7rem 0}
+  .topnav a:hover{color:#fff}
+  .topnav a.on{color:#fff;font-weight:600;box-shadow:inset 0 -3px 0 #fff}
+  .topnav .brand{font-family:ui-monospace,Consolas,Menlo,monospace;font-weight:700;
+    font-size:1rem;color:#fff}
+  select{padding:.5rem .6rem;border:1px solid var(--line);border-radius:6px;
+    font:inherit;font-size:.9rem;background:#fff;max-width:100%}
+  footer a{color:var(--accent)}
+  footer{margin-top:2.2rem;font-size:.8rem;color:var(--muted);line-height:1.7}
+  footer code{font-family:ui-monospace,Consolas,Menlo,monospace;color:var(--navy)}
+</style>
+</head>
+<body>
+<nav class="topnav"><div class="nav-inner">
+  <a class="brand on" href="index.html">ssc2</a>
+  <a href="about.html">About</a>
+  <a href="reference.html">Reference</a>
+  <a href="articles.html">Articles</a>
+</div></nav>
+<main>
+  <div class="kicker">ssc2 · SSC archive time machine</div>
+  <h1>Install Stata packages from a point in time</h1>
+  <p class="lede">Pick a date on the timeline and this page writes the
+    <code>ssc2</code> command that installs packages exactly as the SSC
+    archive stood on that day. Prototype — snapshot list embedded at build
+    time.</p>
+
+  <fieldset>
+    <legend>Packages</legend>
+    <label for="pkgs">Package names <span class="hint">(space-separated, one command per package)</span></label>
+    <div class="acwrap">
+      <input type="text" id="pkgs" value="reghdfe" spellcheck="false" autocomplete="off"
+             role="combobox" aria-expanded="false" aria-controls="ac">
+      <div id="ac" role="listbox" aria-label="Package suggestions"></div>
+    </div>
+    <label class="check" style="margin-top:.9rem">
+      <input type="checkbox" id="bootstrap">
+      <span>Include the one-time <b>ssc2 installation</b> line</span>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Mirror</legend>
+    <label for="mirrorsel">Snapshot mirror
+      <span class="hint">(institutions can run internal mirrors with the same layout)</span></label>
+    <div class="row" style="width:100%">
+      <select id="mirrorsel" style="flex:1">
+        <option value="default">labordynamicsinstitute/ssc-mirror &mdash; public, GitHub</option>
+        <option value="custom">custom mirror URL&hellip;</option>
+      </select>
+    </div>
+    <input type="text" id="mirrorurl" placeholder="https://mirror.example.edu/ssc-mirror"
+           spellcheck="false" style="display:none;margin-top:.6rem">
+  </fieldset>
+
+  <fieldset>
+    <legend>Snapshots</legend>
+    <label class="check">
+      <input type="checkbox" id="freeze" checked>
+      <span><b>Freeze package versions to a dated snapshot?</b>
+      <span class="hint">Freezing enhances reproducibility: anyone running your
+      code later installs the same package versions you used.</span></span>
+    </label>
+
+    <div id="tlzone" class="timeline">
+      <input type="range" id="tl" min="0" max="0" step="1"
+             aria-label="Snapshot date timeline">
+      <div class="tl-labels"><span id="tl-min"></span><span id="tl-max"></span></div>
+      <div class="tl-readout">
+        <span class="tl-date" id="tl-date">—</span>
+        <input type="date" id="datepick" aria-label="Jump to date">
+        <span class="snapnote" id="snapnote"></span>
+      </div>
+    </div>
+  </fieldset>
+
+  <div class="results">
+    <div class="results-bar"><span>Results</span>
+      <button id="copybtn" type="button">Copy</button></div>
+    <pre id="out"></pre>
+  </div>
+
+  <footer id="stats"></footer>
+</main>
+
+<script>
+/* =====================================================================
+   SNAPSHOT DATA — the only part a daily rebuild needs to regenerate.
+   Encoding mirrors the proposed exceptions.csv of the ssc-mirror repo:
+   daily coverage from DAILY_START to LAST_SNAPSHOT, minus MISSING,
+   plus the pre-daily INCLUDES.   (State of the mirror on 2026-07-08.)
+   ---------------------------------------------------------------------
+   Update strategies, per project plan:
+   (a) daily rebuild: CI regenerates these four constants from
+       `git ls-remote --tags` on the mirror (cheap, no API limits), or
+   (b) async refresh: fetch a small exceptions/dates file at page load
+       and overwrite SNAPSHOTS — see refreshSnapshots() stub below.
+   ===================================================================== */
+/* @@DATA-START@@ -- regenerated by build_data.py; do not edit by hand */
+const BUILD_STAMP   = "2026-07-22";
+const DAILY_START   = "2021-12-21";
+let   LAST_SNAPSHOT = "2026-07-22";
+const MISSING  = ["2021-12-22","2024-08-11","2026-03-08","2026-03-09","2026-03-10"];
+const INCLUDES = ["2017-08-10","2021-04-15","2021-08-10"];
+const PACKAGES = ["_gapport","_gclsort","_gdistinct","_gprod","_grmedf","_grndraw","_grpos","_gvreldif","_gwmean","_gwtmean","_peers","a2reg","aaniv","aaplot","aardl","ab2022","abar","abg","abrs","abrsqol","absdid","acelong","acplot","acreg","actest","addbefore","addinby","addlegend","addnotes","addplot","addtex","addtxt","adecomp","adfmaxur","adftest","adjacent","adjksm","adjmean","adjprop","adjust","admetan","adodev","adodown","adoedit","adoinstall","adolist","adostore","adotype","adtest","aedot","aefdr","aevolcano","aextlogit","affiliationexposure","aformat","aggind","agrm","aic_model_selection","ainequal","airnet","aivreg","akdensity","albatross","alignedpairs","alignedranks","alignedsets","alignmicro","allcatplot","allcross","allpossible","allsubsets","allsynth","alluvial","almon","almon1","alogit","alorenz","alphaplot","alphawgt","alsmle","amcmc","ameta","anketest","anogi","anymatch","anythingtodate","apc","apcbound","apcd","apcgo","apch","apoverty","appendall","appendfile","appmlhdfe","archlm","archqq","arcplot","ardl","area","arhomme","arima_forecast","arimaauto","arimafit","arimasel","armadiag","armaroots","array","arrowplot","art","art2tex","artbin","artcat","ascii","asciiplot","ascol","ascvd","asdoc","asgen","ashell","asl_norm","asreg","asrol","assertky","astile","astx","asycaus","ate_pct","atkplot","attcic","attregtest","audit_cc","auto_factor","autofill","autofmt","autolog","autorename","autosum","avar","avciplot","avg_effect","avplot2","avplot3","avplots4","b1x2","babibplot","backrasch","backup","bacondecomp","baiduweather","baing","balancetable","bandplot","bap","baplot","barplot","barplot2","basetable","batcher","batplot","bayerhanck","bayeshmc","bayesmixedlogit","bayesmixedlogitwtp","bayesmlogit","bbandits","bcii","bcoeff","bcoeffs","bcss","bcstats","bctobit","bcuse","bdiff","bdiffv","beamplot","benford","betacoef","betafit","betaprior","betark","betterbar","bf","bfmcorr","bgshade","bgtest","bhapkar","bhatt","biasepi","biastest","bibrep","bic","bicdrop1","bidensity","bigtab","bihist","bimap","bimpoisson","bineq","binomci","binscatter","binscatterhist","bioprobit","biplot","biplotvlab","bipolar","bipolate","birthsim","bitobit","bivpoisson","bivpoisson_ate","bking","bkrosenblatt","blandaltman","blinding","blindschemes","blist","blockboot","blogit2","blood_glucose","blp","bmc","bme","bmi","bmjcip","bmp2dta","bmtest","bnormpdf","boost","boottest","boundedur","boundeduroot","box","box_logscale","boxpanel","boxtid","bpagan","bpass","bpmedian","brain","brewscheme","brglm","brmunid","bronch","bsens","bsopm","bspline","bta2score","btobit","buckley","bugsdat","bugwrite","bumparea","bumpline","bunching","bundle","butterworth","bygap","byhist","bynote","bys","bystore","byvar","c_ml_stata_cv","cacheit","cal","calibest","calibr","calibrate","calinski","calipmatch","callsado","canon","capass","care","carryforward","cart","case2tex","casefat","catdev","catenate","caterpillar","catgraph","catplot","causaldata","causalspline","caustests","cb2html","cbarplot","cc_xd_didtextbook","ccgi","ccmatch","ccmpre","cconv","cctable","ccv","ccweight","cddens","cdecompose","cdfplot","cdfquantreg","cdfquantreg01","cdist","cdo","cdout","cdreg","cedesign","cem","cemimix","cenpois","censornb","censusapi","centcalc","center","centile2","centpow","centroid","cepois","ceq","cf2","cf3","cfbinout","cfby","cfitzrw","cflpois","cfout","cfvars","cgmstats","cgroup","cgssm","chaid","chaidforest","changemean","chaos","chardef","charlist","charlson","charon","chartab","charutil","chatgpt","checkfor2","checkipaddresses","checkreg3","checkrob","checkshp","checkvar","chesspos","chesspuzzle","chewfile","chimchar","china_map","china_spatdwm","chinafin","chinagcode","chiplot","chm","choi_lr_test","chord","chowreg","chowtest","chrdreg","chse","chunky","chunky8","ci2","ci_marg_mu","cibar","cibplot","cic","cid","cie","ciform","cifunction","cihplot","cij","ciplot","cipolate","circlebar","circlepack","circstat","circular","circularkde","cisd","cisets","cistat","citytoprovince","civplot","civreg","ciw","ciwidth_proportions_mc","cjive","ckptest","ckvar","clan","clarify","classifylasso","classplot","classtab","classtabi","clean_class","clean_name","cleanchars","cleandisk","cleanlog","cleanplots","clemao_io","clipgeo","clogithet","clorenz","clrbound","clsp","clspl2","clstop_lbt","cltest","clump","clus_nway","cluster","cluster2","cluster3","clusterbs","clusterdid","clustergram","clustersampsim","clustpop","clustse","clustsens","clv","cm2in","cmatch","cmaxuse","cme","cmitest","cmogram","cmp","cnar","cnborder","cnbreg","cnclean","cndnmb3","cnevent","cngcode","cngdf","cnindex","cnintraday","cnjournal","cnkchart","cnmapsearch","cnormp","cnpoi","cns","cnsrsig","cnssc","cnstock","cnstroke","cntop10","cntrade","cntraveltime","cnuse","cobreakcoint","cochran","codci","codebook2","codebook_ripper","codebookout","codensity","coefconv","coefout","coefplot","cohend","cointsmall","coldiag","coldiag2","colelms","collapse2","collapseunique","color_style","colorscatter","colrspace","combinatorics","combine","combineplot","combival","combomarginsplot","complexity","complogit","compreg","comtrade","concindc","concindex","concord","concordance","conddens","condisc","confa","confall","confirmdir","confnd","confreg","confsvy","conindex","conjoint","conservatism","contour","contrast","convert_top_lines","cooksd2","copycode","copydesc","coranal","corescore","corr2docx","corr2tex","corr_svy","correlationchords","corrtab","corrtable","corrtex","corsp","cortesti","cospectdens","couliari","countmatch","countvalues","countyfips","covbal","cpcorr","cpigen","cpiget","cpoisson","cpoissone","cpr","cprdcribs","cprdenttype","cprdentutil","cprdhesaeutil","cprdhesoputil","cprdhesutil","cprdlinkutil","cprdlsoautil","cprdonsutil","cprdutil","cpredict","cprplot2","cprplots","cpt","cpyxplot","cqiv","cquad","cquadr","cquantile","crash","crater","creplace","crhdreg","crm","crossfold","crossplot","crossvalidate","crossvalidate2","crosswalk","crtest","crtrees","csdid","csestudy","csipolate","csjl","csranks","cstable","csti","csum","csumchart","csvconvert","cta","ctabstat","ctohri","ctreatreg","cub","cuentacot","cupfm","cureregr","cureregr8","curvefit","cusum6","cusum9","cutpt","cv","cv2","cv_kfold","cv_regress","cvauroc","cvcrand","cvequal","cvmtest","cvxhull","cwmglm","cycleplot","d3network","dadjoke","dag","dagfit","dagumfit","dash","dashgph","dashln","datacheck","dataex","datanet","dataout","dataplink","datefrac","datelist","datesum","datmat","dbmscopybatch","dbnomics","dcreate","ddf2dct","ddml","deci","decomp","decompose","delaunay","delta","demotivate","denton","dep4asm","dependencies","depthplot","des2","descgen","desclong","descogini","descriptive_table","descsave","designplot","desma","desmat","detect","devcon","devnplot","devr2","dfao","dfgls","dfl","dfsummary","dftol","dgraph","diagma","diagram","diagreg","diagreg2","diagsampsi","diagt","diagtest","dichoct","dict","did2s","did_had","did_imputation","did_multiplegt","did_multiplegt_dyn","did_multiplegt_old","did_multiplegt_stat","diddesign","didintjl","didparallel","didplacebo","didq","difd","difdetect","diff","diff_plot","diffpi","difwithpar","digdis","digits","diplot","diptest","directma","dirifit","dirlist","dirtools","dirtree","discrates","discrepancy","disjoint","dissim","distan","distcomp","distcomp2var","distill","distinct","distmatch","distplot","distprobmat","distrate","divcat","divratio","dkdensity","dkobs","dlagif","dlist","dlogit2","dltable","dmariano","dmerge","dmexogxt","dmout","dnqr","do2screen","dobatch","docd","docxtab","doiplot","dolog","dologx","domdiag","domin","doparser","doptimal","doseresponse","doseresponse2","dotemplate","dotex","doub2flt","doubleb","doubletofloat","doubmass","dpath","dpplot","dpredict","dptest","dqd","drarea","drcate","drdecomp","drdid","drlate","drm","drmeta","drmmws","ds2","ds3","ds5","dsconcat","dsearch","dseg","dsginideco","dstat","dsweight","dta2ddi","dta2html","dta2kml","dta2md","dta2sav","dtalink","dtanotes","dtapaper","dtastamp","dthaz","dtobit2","dubois","dudahart","dummies","dummies2","dummieslab","dummify","duncan","dups","durbinh","dyadid","dyads","dynamic_est","dynardl","dynpandoc","dynsimpie","dynsimple","eaalogit","eacf","eba","ebalance","ebalfit","ebct","ebreg","ebrowse","ecic","eclpci","eclplot","ecollapse","econsig","edfreg","editprofile","edm","educationdata","eefanalytics","efetch_tools","effcon","effects","efficiency","efolder","egen_inequal","egenmisc","egenmore","egfr","egi","egranger","ehutchens","eitc","elabel","elapse","elasticregress","electool","elife","elix22","elixhauser","ellip","ellip6","ellip7","ellipticity","eltmle","em","email","emailme","emc","emh","encode_label","encodefrom","encodelabel","encoder","enforce","enlarge","entropy","entropyetc","enwei","eofplot","eperiod","epiconf","epidata","epimodels","episens","episensrri","epitable","epiweek","epresent","epsigr","eqprhistogram","equation","er","erate","ereplace","erepost","eret2","ersur","esetran","esizereg","esli","est2tex","esteta","estout","estout1","estparm","estquant","estrat","estsave","estudy","estwrite","eth2grecal","ethiodate","etime","etr","eui","euromod","eurostatuse","eurouse","evalue","evalue_estat","evalues","event_plot","eventbaseline","eventcoefplot","eventdd","eventstudy","eventstudy2","eventstudyinteract","eventstudyweights","evhistplot","evi","evstudydd","ewm","ewma","ewreg","exam2tex","exampleobs","examples","exbsample","excel2latex","excelclean","excelcol","exceloutput","excelsave","exitma","expand_n","expandby","expandihlp","expandrank","expgen","expl","explist","explorelabs","expy","exquantile","extfunnel","extreme","extremes","f_able","faam","fabplot","factext","factmerg","factorn","factortest","factref","fagan","fairlie","far5","fastcd","fastgini","fastreshape","fastxtile","favplots","fbar","fbardl","fbep","fbnardl","fcinstability","fcoint","fcstats","fdfilter","fdta","fedistr","fedit","fejiv","feldti","fencode","fese","fframeappend","ffroot","fgt_ci","fgtest","fhsae","fieldarea","fieller","filei","filelist","filesearch","fileutils","fillmissing","filtertrace","find","find_denom","find_index","finddup","findname","findregex","findsj","findsysmis","findunique","findval","finegray","finn","firstdigit","firthfit","firthlogit","fiscal_impoverishment","fiskfit","fitint","fitmacro","fitstat","fitstat_ers","fixedrho","fixsort","fjcoint","flagout","flex","flexdid","flexmat","flexpaneldid","floatplot","floattolong","florindjp","flowchart","flower","fm","fmiss","fmlogit","fmm","fmmhist","fmmic","fmmlc","fndmtch","fndmtch2","fodstr","for211","forec_instab","forest","forfile","fourierur","fprank","fpref","fpro","fproper","fpuhc","fqardl","fqreg","fracdiff","fracdydx","fracirf","fraclogit","fractal","fractileplot","fragility","fragtextab","frameappend","framed_bar","framingham","framingham30","frapply","frause","frcount","fre","freduse","fredusex","fren","freplace","freqindex","frm","frontier_teci","frontierhtail","fs","fsdet","fshare","fsreg","fsum","fsx","ftest","ftocci","ftools","ftrans","ftree","full_palette","fulltab","funnelcompar","funnelinst","funnelperform","fuzzydid","fvfix","fview","fvprevar","fvregen","fvstrip","fvvar","fxbcr","g538schemes","gam","gamet","gammafit","gammasym","gaodeweather","garbage_mixl","garchur","gausshermite","gb2fit","gb2lfit","gb2reg","gbgfit","gby","gcause","gciget","gcode","gconc","gcrobustvar","gdecomp","gdsum","ge_gravity","ge_gravity2","geekel2d","geivars","gen_tail","genass","gencpr","geneigen","genfreq","gengroup","genhwcci","genicv","genidseq","geninteract","genqreg","genscore","genspec","gensplines","genstack","genstest","gentrun","genvars","geo2xy","geoboundary","geochart","geocircles","geocode","geocode_ip","geocodehere","geocodeopen","geodist","geodist2","geoflow","geoinpoly","geonear","geoplot","georoute","get2ref","get_pwmse","getcensus","getdata","getfilename2","getiref","getmstatistic","getmxdata","getnhs","getprime","getref","getregstats","gets","getsymbols","gevfit","gformula","ggt","ggtax","ggtaxonomy","ghansen","ghazal_guzzler","ghistcum","ghk2","ghsurv","ghxt","ginidecomp","ginidesc","giniinc","ginireg","gintreg","gipf","git","gitee","givgauss2","glcurve","glcurve5","glcurve7","glgamma2","gllamm","glmcorr","glmdeco","glst","gmap","gmci","gmd","gmemultinomial","gmlabvpos","gmmcovearn","gnbstrat","gnpoisson","goelevation","gologit","gologit2","gologit29","googleplaces","goprobit","goprobit2","gpfobl","gphepssj","gphudak","gprefscode","gpreg","gpreset","gpscore2","gpsmd","grand","grand2","graph3d","graphbinary","graphexportpdf","graphfunctions","graphlog","grby","grc1leg2","grcomb","grcompare","grep","grexport","grfreq","gridsearch","grinset","grlogit","grmatgroups","grnote","group1d","group2hdfe","group3hdfe","group_id","group_twoway","groupcl","groupdist","groupfunction","grouplabs","groups","groupseq","grpdf","grpvars","grqreg","grsftest","grstest","grstest2","grstyle","grtext","grubbs","grvar","grxtqreg","gs2sls","gs2slsar","gs2slsarxt","gs2slsxt","gs3sls","gs3slsar","gsa","gsample","gsdata","gsgroup","gsreg","gsum","gtcsem","gtools","gtsheckman","gumbelfit","guttmanl","gvselect","gweakivtest","gwhet","gzipuse","gziputil","gzsave","hadrilm","haif","haiku","half","halfnorm_dist","hallt-skewt","hamiltonfilter","hammock","hangroot","hanoitower","hansen2","hapblock","hapipf","harmby","harreg","hatemicoint","hatemij","hausman","hazdcmp","hbar","hbox","hcaccprox","hcavar","hcnbreg","hdfe","hdquantile","heabs","head","healthequal","heart","heatmapgraph","heatplot","heckprob2","heckroc","hegy4","heterogi","hetop","hetprob","hetred","hetsar","hettreatreg","hful_hlim","hgclg","hglogit","hhi","hhi5","hibi","hildasetup","himap","himatrix","hireg","hist3","histbox","historaj","histplot","hkar","hkprlink","hkstock","hktrade","hkwarrant","hl","hlist","hlm","hlp2html","hlp2pdf","hlp2winpdf","hlpdir","hlpedit","hmap","hmindex","hnbclg","hnblogit","hnbreg1","hodgesl","hoi","hoishapely","hoishapley","holsti","honestdid","hotdeck","hotdeckvar","hotvalue","how_many_imputations","hpc","hpclg","hpcm","hpfilter","hplogit","hplot","hprescott","hrimvol","hshaz","hsmode","hte","htmlcb","htmltab2stata","htmltit","htmlutil","hue","hummels","hutchens","i_ineq","iati","ic","icalc","icc2","icc23","iccconf","iccvar","icdpic","ice","icet","icio","icomp","icw_index","idonepsu","ie_rate","iefieldkit","ietoolkit","ifete","ifin","ifwins","igeintb","igencox","igenerate","igeset","igesetci","igini","igini1","ihelp","ihstrans","iia","ilr","imbalance","imperfectiv","importsav","imputeitems","imputemok","imputerasch","imusic","imvol","inccat","inclusion_economics_scheme","indeplist","index","ineq","ineqdec0","ineqdecgini","ineqdeco","ineqfac","ineqop","ineqord","ineqrbd","inequal2","inequal7","inflate","ingap","inlist2","inmor","inorm","insheetjson","inshell","insingap","insob","installpkg","int_utils","intcens","inteff3","integrate","integrate_aq","interactplot","interflex","intext","intgph","intreg2","intsolver","intterms","invcdf","invcise","invdesc","invgammafit","invgaussfit","iop","iot","iota","ipabcstats","ipdfc","ipdforest","ipdmetan","ipdpower","ipf","ipfraking","ipfweight","ipshin","ipwbreg","ipwlogit","iquantile","ira","irax","irr","irrepro","irscharities","isa","isco","iscogen","iscoil","ishere","isko","isocodes","isogini","isograph","isopoverty","istdize","isvar","itpscore","itsa","itsadgp","itsamatch","itsaperm","itsarand","itsp_ado","itspower","itvalpctile","ivactest","ivbounds","ivcheck","ivcloglog","ivcrc","ivdesc","ivendog","ivgauss2","ivglog","ivgmm0","ivgravity","ivhettest","ivlpirf2","ivmediate","ivolsdec","ivpermute","ivpois","ivprob-ivtobit","ivprob-ivtobit6","ivqreg2","ivreg2","ivreg210","ivreg28","ivreg29","ivreg2h","ivreg2hdfe","ivreg2m","ivreg_ss","ivreghdfe","ivregress2","ivreset","ivtreatreg","ivvif","jaccard","jarowinkler","jb","jb6","jc","jformat","jmpierce","jmpierce2","jnsn","johans","joinvars","jonter","joy_plot","joyplot","jqte","jrule","jsonio","julia","jwdid","kalpha","kanom","kapetanios","kapgof","kaplansky","kappa2","kappaetc","kappalate","kapprevi","kaputil","katego","kdbox","kdens","kdens2","kdmany","keeporder","keepvar","kernel","kernreg1","kernreg2","keyby","keyplot","kfoldclass","khb","kinkyreg","kit_livingincome","kitchensink","kldbrecode","kmatch","kmest","kmsenspec","kmtest","knapsack","kobo2stata","koenker","konfound","kotlarski","kountry","kperrony","kpss","kpssbr","kr20","krippalpha","krls","ksi","ksmirnov2var","kssur","kstest","ksur","kuipertest","kwallis2","kwstat","ky_fit","kypshift","labcenswdi","labeldatasyntax","labellacking","labellist","labelmiss","labelsof","labelutil","labgen","lablist","labmatch","labmm","labmv","labone","labrec","labsort","labsumm","labundef","labup","labutil","labutil2","labvalch3","labvalcl","labvalpool","labvars","lambda","landemets","lany","laplacereg","lars","lasagna","lassopack","lastupto","latab","latinobarometro","lbpower","lbsvmat","lcaentropy","lclogit","lclogit2","lcmc","lddtest","ldecomp","ldtest","le8","leanout","leebounds","leedtwoway","leestra","leftalign","leslie","levels","levene","levinlin","levpredict","lfk","lfsum","lgamma2","lgraph","lhaversine","lianxh","libd3","libhtml","libjson","lincheck","lincom2","lincomest","linequate","linkplot","lintrend","linuxlsd1","linuxlsdl","lisrelinput","listfirst","listmiss","listreg","listsome","listtab","listtex","listutil","litdiscover","littext","ljs","lmabg","lmabg2","lmabgnl","lmabgxt","lmabp","lmabp2","lmabpg","lmabpg2","lmabpgnl","lmabpgxt","lmabpnl","lmabpxt","lmabxt","lmadurh","lmadurh2","lmadurhxt","lmadurm","lmadurm2","lmadurmnl","lmadurmxt","lmadw","lmadw2","lmadwnl","lmadwxt","lmalb","lmalb2","lmalbnl","lmanlsur","lmareg3","lmasem","lmavon","lmavon2","lmavonnl","lmavonxt","lmawxt","lmaz","lmaznl","lmcol","lmcovnlsur","lmcovreg3","lmcovsem","lmcovvar","lmcovxt","lmdi","lmeg","lmfreg","lmfreg2","lmgc","lmharch","lmharch2","lmharchnl","lmharchxt","lmhcw","lmhcw2","lmhcwnl","lmhcwxt","lmhgl","lmhgl2","lmhglnl","lmhharv","lmhharv2","lmhhp","lmhhp2","lmhhpnl","lmhhpxt","lmhlmxt","lmhlrxt","lmhmss2","lmhnlsur","lmhreg3","lmhsem","lmhwald","lmhwaldxt","lmnad","lmnad2","lmnadnl","lmnadxt","lmndh","lmndp","lmndp2","lmngr","lmngry","lmngry2","lmngryxt","lmnjb","lmnjbnl","lmnjbxt","lmnnlsur","lmnreg3","lmnsem","lmnwhite","lmnwhite2","lmnwhitenl","lmnwhitext","lmoments","lmomentsets","lms","lmsrd","lmtest","lmztest","lnmor","loasampsi","localp","locpr","locproj","lodes","loevh","loevh2","log2do2","log2html","log2markup","log2md","logitcprplot","logitfe","logitgraph","logithetm","logitjack","logittorisk","logloss","lognfit","logout","logoute","logpred","logtest","lomackinlay","lomodrs","longch","longplot","longshape","looclass","loocv","lookfor2","lookfor_all","lookfor_val","lookforit","loopplot","lorenz","louvain","lowyseattle","lowyseattlea","lowyseattleb","lpdensity","lpdid","lppinv","lppinvl2","lprplot","lrasvar","lrchg","lrdrop1","lrmatx","lrmbounds","lrplot","lrseq","lrutil","lsacsetup","lsaplot","lstack","lstrfun","ltable2","ltimbimata","ltop","luvain","lvalues","lvr2plot2","lwavelet","lwdid","lxhget","lxhuse","lxpct_2","lzqreg","m_stats","mac_unab","macrof","madfuller","madot","mads","magreg","mahapick","mail","majority","makeddi","makehlp","makeid","makematrix","maketex","maki","makicoint","malmq2","manski_ci","manybars","manyweakiv","map","mapch","mapsm","maptile","margdistfit","margeff","margfx","margin","margins_dynxteprobit","marginscontplot2","margintegrate","marglmean","margprev","marhis","marimekko","mark_changes","marker","markobs","markov","markovci","markovfirstorder","markovfutureprob","markovmeanrecurrence","markovmfpt","markovpredict","markovsteadystate","markovtheotrans","markstat","marktouse","markupest","mat2txt","matamatrix","matchi2","matchit","matdrop","matin4-matout4","matmap","matnames","matodd","matpwcorr","matrixof","matrixtools","matsave","matsort","matstat","matvsort","matwrite","mauchly","maxdrawdown","maxsum","maxwell","mbitobit","mbsens","mc","mca","mcenter","mces","mchs","mcib","mcl","mcmccqreg","mcmclinear","mcmcstats","mcqscore","mcwr","mdensity","mdepriv","mdesc","mean2","mean_ci_plot","meaning","medage","medcouple","median","mediation","medoid","medsem","medsurv","mehetprob","meloreg2","melt","menger","meoprobit","mequate","meresc","mergeall","mergemany","mergepoly","merlin","meta_analysis","meta_lr","metaaggr","metaan","metabias","metacum","metadata","metadialog","metadta","metaeff","metafrag","metafunnel","metagen","metagraph","metalong","metamiss","metamiss2","metan","metandi","metaninf","metaparm","metaplot","metapow","metapred","metapreg","metaprop","metaprop_one","metareg","metastrong","metatef","metatrend","metatrim","metaxl","mfcurve","mfelogit","mfilegr","mfpi","mfpigen","mfpmi","mfx2","mgbe","mgen","mgof","mhl","mhtexp","mhtopt","mhtreg","mi_impute_from","mi_mvncat","mi_twoway","mibmi","mice","mict","midas","midas_dlg","miesize","mif2dta","miinc","mim","mimix","mimpt","mimrgns","mimstack","minap","minmse","mint","miparallel","mipolate","mira","missing","missingplot","missings","misum","mivcausal","mivif","mixedpower","mixi01","mixi12","mixlelast","mixlogit","mixlogitwtp","mixmcm","mixmixlogit","mixrandregret","mkbilogn","mkcorr","mkdat","mkdensity","mkern","mkest","mkprofile","mkproject","mkstrsn","mktab","mktex","mlad","mlboolean","mlcoint","mlm_gof","mlmoderator","mlogitroc","mlogpred","mlowess","mlr2sls","mlt","mmat2tex","mmeiv","mmerge","mmodes","mmqreg","mmqrtest","mmsel","mmsrm","mmws","mnthplot","mod11","mode","modeldiag","modlpr","modplot","mog","mol","moments","moments2","momentsets","moranplot","moransi","more_clarify","moremata","moreobs","moss","motivate","motivatedolly","mountainplot","movavg","movestay","mpi","mpitb","mplotoffset","mpovline","mpr","mqgamma","mrdum","mrgtbl2","mrobust","mrprobit","mrsprep","mrtab","mscatter","mscologit","msdeco","msdirb","mseffect","msp","msplot","mss","mstdize","mstore","mswtable","mtab","mtad","mtebinary","mtefe","mtemore","mtnardl","mtpi","mtreatreg","mulogit","multencode","multiauc","multibar","multicoefplot","multicoint","multidot","multif","multiline","multimport","multipurt","multishell","multisite","multisite_regitt","multisite_reglate","multisite_varitt","multisite_varlate","multispline","multistate","multisynth","multivrs","mundlak","muxplot","muxyplot","mvardlurt","mvcorr","mvdcmp","mvfiles","mvfilter","mvmeta","mvnxpb","mvplot","mvport","mvprobit","mvsamp1i","mvsampsi","mvsktest","mvsumm","mvtest","mvtnorm","mvtobit","myaxis","mycd10","mycolours","mydatelabels","myedit","myinterval","mylabels","mypkg","myrank","myreg2","mysuite","myweeks","naam","naics_to_ff","namecheck","narayanp","nb_adjust","nbercycles","nbfit","nbinreg","nbstrat","nca","ncf","nct","ndbci","nearest","nearmrg","nearstat","nehurdle","neoclassical","netplot","netreg","network","newey2","newsimpact","next","ngram","nharvey","nicedates","niceest","nicelabels","niceloglabels","nicewords","njc_stuff","nlcheck","nlcorr","nlls","nmf","nmissing","nnest","nnipolate","nnls","nnmatch","nonparmde","nopo","nopomatch","norm","norm_dist","normalbvr","normalizepath","normalrir","normtest","npeivreg","npinfo","npiv","nproc","npseries","npss","npsynth","nrow","nrow2","nruns","nscale","nsplit","nstage","nstagebin","nstagebinopt","ntreatreg","ntwrk","num2base26","num2words","number_exporting","numdate","nvars","nw_fromlist","nw_projection","nw_wcc","nwannd","nwassortativity","nwcluster","nwdisparity","nwind","nwreciprocity","nwstrengthcent","nysiis","nytimes","oaxaca","oaxaca8","oaxaca9","obsdiff","obsofint","ocmt","ocratio","ocsb","oda","oddsrisk","odi","odk_validate","odkexport","odkmeta","odksplit","oeratio","oesch","oga","oglm","oglm9","okpreserve","omegacoef","omninorm","omodel","oneclick","onedrive","onespell","onetext","onewayplot","onewplot","opacity","oparallel","openall","opencagegeo","opendf","opl","oplabdata","opplot","oprobpr","optaspect","optifact","ordaxaca","ordcatsampsi","ordplot","ordvar","orse","orth_out","orthog","osgen","osort","outdat","outdetect","outfix","outfix2","outfixt","outreg","outreg2","outreg2e","outreg5","outseries","outsum","outtable","outtex","outwrite","ovbd","overdisp","overfit","overid","overlay","p2ci","pace","pagetrend","pairdata","pairplot","pajek2stata","palette_all","palettes","pam","panelauto","panelhetero","panell","panels","panelthin","panelunit","panelview","pantest2","paragr","parallel","paramed","paran","paretofit","pariv","parmest","parmhet","parmparse","parplot","parseloc","parseuas","partchart","partgam","partpred","parttau","pascal","path","pathmaker","pathof","pathutil","paverage","payper","pbeta","pbreg","pca2","pcacoefsave","pccmtoolkit","pcdid","pcdsearch","pchipolate","pciplot","pcm","pcmdif","pcmodel","pcmtest","pcontract","pcorr2","pcorrmat","pcpanel","pctilesets","pctrim","pdc","pdfplot","pdi","pdplot","pdslasso","peermean","peerreview","pem","percat","percentmatch","percom","personage","persuasio","perturb","pescadf","petpoisson","pexp","pfs","pfwb","pgamma","pgmhaz8","phack_deround","pheatplot","phenotype","piaactools","pidid","pieplot","pindex","pinocchio","pisareg","pisatools","plausexog","plot_confidently","plotbeta","plotmatrix","plotrpys","plottabs","pls","plssas","plssem","plztowknr","pmanage","pmcalplot","pmean","pmsampsize","pmvalsampsize","pnardl","png2rtf","pnrcheck","pobrezaecu","pocoint","poi2hdfe","poisml","poissark","polar","polarspike","polishpaper","polyspline","pooledsd","poparms","popsim","postrcspline","postrri","posw_posis","povcalnet","povdeco","poverty","povguide","povguide2","povimp","povtime","power_arima_itsa","power_concord","power_diagnostic","power_icc","power_itsa","power_kappa","power_loa","power_oneroc","power_roc","power_step","power_swgee","power_tworates_zhu","power_tworoc","powercal","powerclus","powermap","powerq","powersim","ppml","ppml_fe_bias","ppml_panel_sg","ppmlhdfe","ppp","ppplot","ppschromy","ppssampford","pq","praisk","prcoint","pre","predcalc","predperf","predsurv","predxcat","predxcon","prepar","preparation","preserve_globals","pretrends","pretty_baseline","pretty_suite","prevent","primes","printgph","prismscore","probcalc","probexog-tobexog","probgenextval","probitfe","probitiv","probitmiss","prodest","prodvars","prody","profhap","progres","project","prolist","propcnsreg","proprcspline","prosperity","province_devcat","prtab","prwe","psacalc","psbayes","psemail","psestimate","pshare","psidtools","psiduse","psmatch2","pspline","psr","psreg","pstrata","psweight","ptrend","ptvtools","pullin","punaf","punafcc","putdocxcrosstab","putdocxfreqtable","putwrap","pv","pvenn","pvfix","pvvar","pvw","pwcorr2","pwcorrf","pwcorrs","pwcorrw","pwcov","pweibull","pwexp","pwlaw","pwmc","pwploti","pyconvertu","pyramid","pyramid_chart","pystacked","python","pzms","qadf","qap","qardl","qbeta","qbplot","qcm","qcointlib","qconvert","qcount","qenv","qexp","qfactor","qgamma","qhapipf","qic","qll","qlognorm","qlqc15","qmodplot","qn","qnardl","qog","qogbook","qpair","qpfit","qqcompare","qqplot2","qqplot3","qqplotg","qqr","qqvalue","qreg2","qregpd","qregplot","qregsel","qresid","qrisk2cmd","qrkd","qrowname","qrprocess","qsim","qsub","qta","quadas","quaidsce","qualtricsload","quandl","quantil2","quantiles","quasicoint","quickicc","quine","qv","qvar","qweibull","r2_mlm","r2_mz","r2_nakagawa","r2c","r2nlsur","r2o","r2reg3","r2sem","r2var","r_ml_stata_cv","r_to_d","radar","radf","radiusmatch","raewma","ralloc","ralpha","rals","randcmd","randcmdci","randcoef","randinf","randmarkovseq","randomid","randomize","randomizr","randomselect","randomtag","randtreat","randtreatseq","rangejoin","rangerun","rangestat","rankseg","ranktest","ranova","ranvar","rardl","ras","raschcvt","raschfit","raschify","raschpower","raschtest","raschtestv7","rasprt","rassign","ratio_plot","rbfmvar","rbiprobit","rbounds","rc2","rc_spline","rca","rcd","rcentile","rcl","rcm","rcolp2mat","rcsgen","rcspline","rct_minim","rctable","rctmiss","rd","rdatasets","rdbalance","rdci","rdcont","rdcv","rddensity","rddid","rddsga","rdecompose","rdesigni","rdexo","rdiff","rdmse","rdpermute","rdplot","rdpower","rdqte","rdrobust","rds","rdstagger","readlog","readraster","readreplace","readshare","readwind","realcomimpute","recap","recast2","reclink","recocl","recode12","recode2","recol","redcapsetup","redi","reduce_aigc","reffadjust","reffect","reformat","reftex","reg2docx","reg2hdfe","reg2logit","reg_sandwich","reg_ss","regall","reganat","regaxis","regbreak","regcheck","regcoef","regdis","regen","regfit","reggae_music","reghdfe","reghdfejl","regife","regintfe","reglike","regmain","regoprob","regoprob2","regoptwgt","regpar","regpred","regproject","regresby","regsave","regsensitivity","regtable","regtex","regwls","regxfe","rel_clust","reldist","relicoef","relogit","relrank","rely","relyplot","remr","renames","renfiles","renlabv","rensheet","renvarlab","reorder","repeatability","repest","repkit","replacebylab","replacen","report","reporterror","repsample","require","reset","reset2","resetxt","reshape3","reshape7","reshape8","reshapelabel","resize","resp","respdiff","reswage","retrodesign","reu","rev","revcat","revrs","revv","reweight","reweight2","rewrite","rfl","rforest","rfregk","rgb2","rglm","rgroup","rhausman","rhetplot","rho_xtregar","rhsbsample","richness","ridder","ridge2sls","ridgeline","ridgeline_plot","ridgereg","rif","rifle","riflogit","rii","riigen","rioc","ritest","rkqte","rmanova","rmclass","rmcorr","rmfiles","rmhbounds","rmloa","rmpw","rmse","rnd","robbox","robinson","robit","robjb","roblpr","robmv","robnova","robreg","robreg10","robstat","robumeta","robustate","robustpf","rocmic","rocss","roctabi","rollbook","rolling2","rolling3","rollreg","rollstat","roman","romantoarabic","rori","ros","rosali","rosner","rosssekh","rotate2","round_exact","rowmat_utils","rowranks","rowsort","rowsum","rpaxioms","rpme","rpnfcn","rq","rqr","rqrs","rrcalc","rrlogit","rrp","rrr","rrreg","rscore","rscript","rsens","rsgt","rsoort","rsort","rsource","rspeedindex","rsz","rtfutil","rtmci","rtnorm","runby","runmixregls","runmlwin","runmplus","running","runningprod","runparscale","russ_stata","rvfplot2","rvlrplot","rvpplot2","rwg","rwolf","rwolf2","rwrmed","s2s","sadi","sae","safedrop","sampicc","samplepps","samplesize","sampsi_fleming","sampsi_gehan","sampsi_mcc","sampsi_reg","sampsi_rho","sampsi_sccs","samregc","sankey","sankey_plot","saswrapper","savasas","save12","save13","save9","saveascii","saveresults","savesome","savespss","sbbq","sbldo","sblsf","sbmeff","sbplot","sbplot5","sbri","sbrowni","scale_transformation","scandata","scat3","scatter3d","scatterfit","sccsdta","scdensity","scenreg","scenttest","scfcombo","scheme-burd","scheme-mrc","scheme-tfl","scheme_rbn1mono","scheme_scientific","scheme_tufte","scheme_ukri","schemepack","scls","scm","scoregof","scoregrp","scores","scrash","screen","scsomersd","scto","sctree","scul","sdecode","sdid","sdid_event","sdist","sdlim","sdline","sdmxuse","searchfor","searchr","seast","seg","segregation","seldum","selectvars","semean","semipar","sencode","sendtoslack","sensatt","sensemakr","sensimatch","senspec","sentinel","sepscatter","seq","seqfind","seqlogit","sequences","ses_forecast","setpoisson","setrngseed","setroot","sf12","sf36","sf36fr","sf36v2","sfcross","sfkk","sfpanel","sgini","sgpv","sgtreg","shakespeare","shapley","shapley2","shapowen","sheafcoef","shortdir","shorth","showgph","shownear","shp2dta","shuffle","shuffle8","shufflevar","shwinters_forecast","sic_to_ff","sicff","side_histogram","sigcoef","silhouette","silvermtest","sim_arma","simarwilson","simirt","simon2stage","simpplot","simpute","simsum","simufe","simulate2","simuped","singlearm","singleb","sivqr","sivreg","sixplot","sizefx","sj1","sjive","skbim","skdecomp","skewplot","skewreg","skilmack","sknor","skprobit","sliceplot","slideplot","slideviewer","slist","slopepower","sls","smcfcs","smcl2do","smclpres","smfit","smgfit","smhsiao","smileplot","smithwelch","smrtbl","smvcir","smwoodbury","sob","socstrat","soepdo","soepren","soepuse","solve","somersd","songbl","soreg","sortl","sortlistby","sortobs","sortrows","sotable","spaces","spagg","sparkline","sparkta","spatial_hac_iv","spautoc","spautoreg","spcs2xt","spdir","spearman2","spec_stand","specc","speccheck","spechist","specialexp","spectdens","speedergles","spell","spellutil","spgen","spglsxt","spgmm","spgmmxt","spgrid","sphdist","spider","spike","spikeplt","spineplot","spkde","splagvar","splinefit","split","splithalf","splitit","splitvallabels","splitvarlabels","spmap","spmlreg","spmon","spmstar","spmstard","spmstardh","spmstardhxt","spmstarh","spmstarhxt","spmstarxt","spnorm","sppack","spregcs","spregdpd","spregfext","spreghetxt","spregrext","spregsac","spregsacxt","spregsar","spregsarxt","spregsem","spregsemxt","spregxt","sproper","spseudor2","spsfe","spsiv","spspc","spsurv","sptobitmstar","sptobitmstard","sptobitmstardhxt","sptobitmstarh","sptobitmstarhxt","sptobitmstarxt","sptobitsac","sptobitsacxt","sptobitsar","sptobitsarxt","sptobitsdm","sptobitsdmxt","sptobitsem","sptobitsemxt","spundir","spweight","spweightcs","spweightxt","spwmatfill","spwmatrix","spxttobit","sq","sqmc","sqr","sratio","sreweight","srh_test","srslogit","srtree","ssaggregate","ssccount","ssci","sscpax","sscsubmit","ssi","ssizebi","sskapp","sslope","ssm","sspecialreg","st2openbugs","stackbar","stackdid","stackedcount","stackedev","stackreg","stackscpvals","staft","staggered","stak","stan","standsurv","stanrun","starjas","stat2data","stata2pajek","stata_linter","stata_sage","statacmds","stataid","statajava","statapush","statastates","statax","statflow","staticfc","statplot","statsbyfast","statsmat","stattotex","stbget","stbrier","stbtcalc","stcapture","stcascoh","stcband","stckar","stcmd","stcomlist","stcompadj","stcompet","stcoxgof","stcoxplt","stcrmix","stcrprep","stcstat","stcstat2","stcumh","std_beta","stddiff","stdtable","step3","stexpect","stfform","stgenreg","stgit","stgtcalc","stipw","stjm","stjm11","stjmgraph","stkap","stkerhaz","stlda","stmd","stmix","stmixed","stmt","stndzxage","stnet","stns","sto","stocdom","stockcapit","stockquote","stop","storecmd","stpepemori","stphcoxrcs","stpiece","stpm","stpm2","stpm2_standsurv","stpm2cif","stpm2cm","stpm2cr","stpm2illd","stpm3","stpp","stquant","str2d","stratarand","strbee","strcs","strdate","strdist","streamplot","strgen","strgroup","stripplot","strkeep","strmst2","strparse","strrec","stselpre","stsurvdiff","stsurvimpute","sttex","studysi","stute_test","stvarag","stvarcom","stylerules","styletextab","subinfile","sublime","submatrix","subsave","subset","subsetbyvif","subsetplot","subsim","suchowtest","sum2","sum2docx","sumbar","sumdist","sumdocx","summarizeby","summclust","summdate","summout","summtab","sumscale","sumstats","sumtex","sumup","sunburst","sunflower","supclust","supercompress","supsmooth","suregr","surface","surloads","surrog","survcollapse","surveybias","surveycluster","surveyspan","survsim","survtime","survwgt","suso","susoapi","sutex","sutex2","svalue","svarsirf","svcom","svmachines","svmatf","svr","svret","svtxt","svvarlbl","svybsamp2","svycanon","svygei_svyatk","svylorenz","svypxcat","svypxcon","svysampsi","svysd","svyselmlog","svytabs","swain","swapval","swblock","swboot","swindex","switch","switchoprobit","switchoprobitsim","switchr","swpermute","sxpose","sxpose2","symbionet","syncmrates","syndatakit","synlight","synth","synth2","sysport","t2docx","t2way5","tab2diag","tab2excel","tab2mat","tab2way","tab3way","tab_chi","taba","tabbit","tabcond","tabcount","tabcusum","tabex","tabexport","tabform","tabhbar","tabhplot","tablab","table1","table1_mc","tablecol","tablemat","tablepc","tableplot","tabletutorial","tabmerge","tabmult","tabone","tabout","tabplot","tabsheet","tabstat2excel","tabstatmat","tabxml","tacts","tail","tarow","tarur","tau2ci","tca","tcod","tddens","tdpd","ted","teffects2","telegram","tenspiders","ternary","tesensitivity","testcase","testex","testijfe","testjfe","testmnt","testout","testvec","tex2col","tex3pt","tex_equal","texdoc","texify","texmerge","texresults","texresults2","texsave","textbarplot","texteditors","textfind","textgph","textpad","tfdiff","tfinsert","tfr2","tfv","tgmixed","tgraph","theildeco","theilr2","thesis_diagram","threshcoint","thsearch","tictoc","tidy","tidytuesday","tihtest","timealloc","timeit","timeleft","timestamp","titebeta","title","tiva2023","tkdensity","tknz","tmap","tmpdir","tmpinv","tmpinvi","tmpinvl2","tmpm","tmpm2","tnardl","tnardll","tobithetm","tobitiv","todate","todummy","tohtml","tolerance","tolong","tolower","tomarkstat","tomata","tomode","topsis","torats","torumm","tosql","totimpact","touch","tpm","tpoisson","tpred","tptest","tpvar","tr","traces","trackobs","transint","translog","transplot","traveltime","treatoprobit","treatoprobitsim","treatrew","tree","treecluster","treemap","treeplot","trellis","trialcounts","trim_vars","trimap","trimlabs","trimmean","trimplot","trinary","triplot","triprobit","trnbin0","trop","trpois0","truecrypt","truernd","try","tryem","tsadvroot","tscb","tscollap","tsegen","tsgraph","tslist","tslstarmod","tsmktim","tsplot","tsspell","tstf","tsti","ttab","ttable","ttable2","ttable3","tteir","ttestex","ttestplus","ttesttable","tuples","turnbull","tvdiff","tvgc","tvpreg","tw3xls","twby","twc_inf","twexp","twfe","twfem","twgravity","twitter2stata","twofold","twolevelr2","twopm","twostep","twostep_nardl","twostepweakiv","twoway__whistogram_gen","twoway_estfit","twoway_parea","twowayfeweights","txt2qr","txtlabdef","txttool","ua","ucgof","ucspsplit","udiff","ueve","uirt","uirt_sim","ultimatch","umbrella","umeta","underid","undid","unemp","unicefdata","unicode2ascii","unique","uniquestrata","unitab","unitchg","univar","univstat","upoint","upset_plot","upsetplot","urall","urcovar","urstat","urtable","urvol","usagelog","usd","use10","use10save9","use13","use13save12","usecausaldata","uselab","useold","usepackage","usesas","usesome","usespss","usexmlex","usmaps","usmaps2","usort","usos","usswm","utest","vaf","valcuofon","validarcae","validly","validscale","vallab","vallabdef","vallabframe","vallabsave","vallist","valtovar","valuesof","vam","vanelteren","var_nr","varcase","varck","vardistinct","variog","varlab","varlabdef","varlag","varlmhet","varlocal","varmi","varprod","varsearch","vartyp","vbkw","vc_pack","vce2way","vce_mcov","vcemway","vcf","vclose","vcontrol","vecar","vecar6","vececm","vennbar","venndiag","veracrypt","viewresults","vincenty","violin","violinplot","vioplot","vlc","vlgen","vlist","vmatch","vmerge","vorter","vplplot","vratio","vreverse","vreverse9","vsave","vselect","vtokenize","waffle","waffle_plot","wald_mse","wasstest","wavenardl","wbopendata","wbull","wcbregress","wclogit","wdi_deflate","wdireshape","wdiscrim","weai","weakiv","weakiv10","weakivtest","weakivtest2","weathr","weaver","webdoc","webimage","weeklyclaims","weibullfit","welcom","welflossas","wgtdistrim","wgttest","whereis","which_version","whichlist","whichpkg","white","whitetst","whittle","whotdeck","wid","williams","windowsmonitor","winprob","winratio","winratiotest","winsor","winsor2","winsor4","witch","wksmirnov","wntstmvq","wooldid","wordcb","wordcloud","wordconvert","wordy","workdays","worldstat","wosaddress","wosload","wridit","writeinput","writekml","writepsfrag","wscv","wtd","wtd_perc","wtdttt","wtp","wtpcikr","wwwhelp","wxsum","wyoung","xauto","xb2pi","xbalance","xbrcspline","xcollapse","xcontract","xcorplot","xdatelist","xdir","xfrac","xframeappend","xglm","xgroup","xicor","xlcor","xlincom","xlink","xls2dta","xls2stata","xmiss","xml_tab","xpredict","xrewide","xrigls","xriml","xsampsi","xsmle","xsvmat","xt2treatments","xtab","xtable","xtabond2","xtarimau","xtarsim","xtavplot","xtbalance","xtbalance2","xtbalfront","xtbcfe","xtbchpanel","xtbestcce","xtbfkbreak","xtbhst","xtbreak","xtbreakcoint","xtbreakmodel","xtbreakscoint","xtbunitroot","xtcadfcoint","xtcaec","xtcbc","xtcbfe","xtcce","xtccecoint","xtcd","xtcd2","xtcdf","xtcenter","xtcips","xtcointreg","xtcombreak","xtcsb","xtcsd","xtcsdq","xtcse2","xtcsi","xtcsnardl","xtcspqardl","xtdcce","xtdcce2","xtdhazard","xtdhcoint","xtdolshm","xtdpdbc","xtdpdgmm","xtdpdml","xtdpdqml","xtdpdserial","xtdpthresh","xtdynestimb","xtdyntest","xtendothresdpd","xteurostat","xtevent","xtewreg","xtfactortest","xtfeis","xtfifevd","xtfisher","xtfixedcoeftvcu","xtfmb","xtfmg","xtgcause","xtgeebcv","xtgets","xtgls2","xtglsr","xtgmcoint","xtgmmfa","xtgps","xtgrangert","xtgraph","xtgunitroot","xtheckmanfe","xtheteroquant","xthkrcoint","xthpool","xthrtest","xthst","xthybrid","xtidt","xtile2","xtiletest","xtimportu","xtine","xtistest","xtitsa","xtivdfreg","xtivreg2","xtivreg28","xtkpybreak","xtkr","xtkumblienhard","xtlmbreak","xtloglin","xtlongestim","xtlsdvc","xtmg","xtmipolateu","xtmis","xtmispanel","xtmissingfill","xtmixed_corr","xtmixediou","xtmixedroot","xtmod","xtmoran","xtmrho","xtmulticointgrat","xtmunitroot","xtnondynthreshsfa","xtnonlincoint","xtnptimevar","xtnumfac","xtoos","xtoutliers","xtoverid","xtpanelcoint","xtpattern","xtpatternvar","xtpcaus","xtpcmg","xtpdlib","xtpdyn","xtpedroni","xtpfardl","xtpmg","xtpqardl","xtpqcce","xtpqcs","xtpqml","xtpqroot","xtpraisk","xtpretest","xtprobitunbal","xtpsse","xtpunitcoint","xtpvarcoint","xtqptest","xtqreg","xtqrplot","xtqsh","xtquantilebreak","xtrec","xtregam","xtregbem","xtregbn","xtregcluster","xtregdhp","xtregfem","xtreghet","xtregmle","xtregre2","xtregrem","xtregsam","xtregtwo","xtregwem","xtregwhm","xtrevu","xtrobreg","xtscc","xtsel","xtselfe","xtsemipar","xtseqreg","xtserialpm","xtsfkk","xtspj","xtss","xtstfetchcovid19","xtstgathercovid19","xtsum2docx","xtsur","xtsurmg","xttacce","xttest2","xttest3","xttest4","xttestpanel","xttrans2","xtusreg","xtvar","xtvar2","xtvc","xtvfreg","xtwest","xvalols","yalescheme","yaml","yatchew_test","yrdif","zandrews","zb_qrm","zcq","zicen","zinb","zip","zipffit","zippkg","zipsave","zmap","zoib","zscore06","ztg","ztnbp","ztpflex","ztree2stata"];
+/* @@DATA-END@@ */
+
+function buildSnapshotList(extra){
+  const out = [...INCLUDES, ...(extra||[])];
+  const miss = new Set(MISSING);
+  const d = new Date(DAILY_START+"T00:00:00Z"), end = new Date(LAST_SNAPSHOT+"T00:00:00Z");
+  for(; d<=end; d.setUTCDate(d.getUTCDate()+1)){
+    const iso = d.toISOString().slice(0,10);
+    if(!miss.has(iso)) out.push(iso);
+  }
+  return [...new Set(out)].sort();
+}
+let SNAPSHOTS = buildSnapshotList();
+
+/* Async freshness top-up (strategy b, cheap variant): ONE call to the
+   GitHub tags API discovers snapshots newer than the embedded build.
+   The first page (100 tags) covers >3 months of staleness. Fails
+   silently -- the embedded data keeps working -- and degrades cleanly
+   under the API's 60 calls/hour/IP unauthenticated rate limit. */
+async function refreshSnapshots(){
+  try{
+    const r = await fetch(
+      "https://api.github.com/repos/labordynamicsinstitute/ssc-mirror/tags?per_page=100",
+      {headers:{Accept:"application/vnd.github+json"}});
+    if(!r.ok) return;
+    const fresh = (await r.json()).map(t=>t.name)
+      .filter(n=>/^\d{4}-\d{2}-\d{2}$/.test(n) && n > LAST_SNAPSHOT).sort();
+    if(!fresh.length) return;
+    LAST_SNAPSHOT = fresh[fresh.length-1];
+    const keep = currentDate();
+    SNAPSHOTS = buildSnapshotList(fresh);
+    tl.max = SNAPSHOTS.length-1;
+    tl.value = Math.max(0, SNAPSHOTS.indexOf(keep));
+    $("tl-max").textContent = LAST_SNAPSHOT;
+    $("datepick").max = LAST_SNAPSHOT;
+    renderStats(` — <b>refreshed live:</b> snapshots through <code>${LAST_SNAPSHOT}</code> added`);
+    render();
+  }catch(e){ /* offline or rate-limited: embedded data stands */ }
+}
+
+/* ================================ UI ================================ */
+const $ = id => document.getElementById(id);
+const DEFAULT_MIRROR = "https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror";
+function mirrorURL(){
+  if($("mirrorsel").value !== "custom") return DEFAULT_MIRROR;
+  const v = $("mirrorurl").value.trim().replace(/\/+$/,"");
+  return v || DEFAULT_MIRROR;
+}
+const tl = $("tl");
+tl.max = SNAPSHOTS.length-1;
+tl.value = SNAPSHOTS.indexOf("2022-01-07");          // a friendly default
+$("tl-min").textContent = SNAPSHOTS[0];
+$("tl-max").textContent = SNAPSHOTS[SNAPSHOTS.length-1];
+$("datepick").min = SNAPSHOTS[0];
+$("datepick").max = SNAPSHOTS[SNAPSHOTS.length-1];
+
+function currentDate(){ return SNAPSHOTS[+tl.value]; }
+
+function nearestIndex(iso){                    // snap gaps to nearest snapshot
+  let lo=0, hi=SNAPSHOTS.length-1;
+  while(lo<hi){ const mid=(lo+hi)>>1; SNAPSHOTS[mid]<iso ? lo=mid+1 : hi=mid; }
+  if(lo>0 && Math.abs(Date.parse(SNAPSHOTS[lo-1])-Date.parse(iso)) <
+             Math.abs(Date.parse(SNAPSHOTS[lo])  -Date.parse(iso))) lo--;
+  return lo;
+}
+
+const VALID = /^[a-z_][a-z0-9_]*$/;
+function render(){
+  const freeze = $("freeze").checked;
+  const tlOff = !freeze;                       // unfrozen: ssc2 falls back to ssc
+  $("tlzone").classList.toggle("disabledzone", tlOff);
+  tl.disabled = tlOff;
+  $("datepick").disabled = tlOff;
+  $("tl-date").textContent = currentDate();
+  $("datepick").value = currentDate();
+
+  const names = $("pkgs").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const lines = [];
+  if($("bootstrap").checked){
+    lines.push('<span class="cm">* one-time: install the ssc2 command itself</span>');
+    lines.push('<span class="p">. </span>net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/main")');
+    lines.push('');
+  }
+  if(!names.length){
+    lines.push('<span class="err">Enter a package name above to generate a command.</span>');
+  }
+  for(const n of names){
+    if(!VALID.test(n)){
+      lines.push(`<span class="err">"${n.replace(/[<>&]/g,"")}" is not a valid package name</span>`);
+      continue;
+    }
+    const extras = [];
+    if(freeze) extras.push(`date(${currentDate()})`);
+    if(mirrorURL() !== DEFAULT_MIRROR) extras.push(`from("${mirrorURL()}")`);
+    const opt = extras.length ? `, <span class="opt">${extras.join(" ")}</span>` : "";
+    lines.push(`<span class="p">. </span>ssc2 install ${n}${opt}`);
+  }
+  $("out").innerHTML = lines.join("\n") + '\n<span class="p">. </span><span class="cursor"></span>';
+}
+
+$("datepick").addEventListener("change", e=>{
+  if(!e.target.value) return;
+  const i = nearestIndex(e.target.value), note = $("snapnote");
+  if(SNAPSHOTS[i]!==e.target.value){
+    note.textContent = `no snapshot on ${e.target.value} — snapped to ${SNAPSHOTS[i]}`;
+    note.classList.add("show");
+    setTimeout(()=>note.classList.remove("show"), 4000);
+  } else note.classList.remove("show");
+  tl.value = i; render();
+});
+["input","change"].forEach(ev=>{
+  tl.addEventListener(ev, render);
+  $("pkgs").addEventListener(ev, render);
+  $("freeze").addEventListener(ev, render);
+  $("bootstrap").addEventListener(ev, render);
+  $("mirrorurl").addEventListener(ev, render);
+});
+$("mirrorsel").addEventListener("change", ()=>{
+  $("mirrorurl").style.display = $("mirrorsel").value==="custom" ? "block" : "none";
+  renderStats($("mirrorsel").value==="custom"
+    ? " — note: the timeline reflects the public mirror's coverage" : "");
+  render();
+});
+
+$("copybtn").addEventListener("click", ()=>{
+  const text = $("out").innerText.replace(/^\. /gm,"").replace(/\n\.?\s*$/,"").trimEnd();
+  const done = ()=>{ $("copybtn").textContent="Copied"; setTimeout(()=>$("copybtn").textContent="Copy",1500); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(()=>fallback());
+  } else fallback();
+  function fallback(){
+    const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove(); done();
+  }
+});
+
+function renderStats(extra){
+  $("stats").innerHTML =
+  `Snapshots: daily from <code>${DAILY_START}</code> to <code>${LAST_SNAPSHOT}</code>,
+   <code>${SNAPSHOTS.length}</code> dates in all; exceptions are listed in the mirror's
+   <a href="https://github.com/labordynamicsinstitute/ssc-mirror/blob/main/ERRATA.md">ERRATA</a>.
+   Autocomplete covers <code>${PACKAGES.length}</code> packages.
+   Data generated <code>${BUILD_STAMP}</code>${extra||""}.`;
+}
+renderStats();
+
+/* ------------------------- autocomplete ---------------------------- */
+let acItems = [], acIdx = -1;
+const acBox = $("ac"), pkgsEl = $("pkgs");
+function acHide(){ acBox.style.display="none"; acItems=[]; acIdx=-1;
+                   pkgsEl.setAttribute("aria-expanded","false"); }
+function acShow(){
+  const m = pkgsEl.value.match(/([a-z0-9_]*)$/i);
+  const tok = (m ? m[1] : "").toLowerCase();
+  if(tok.length < 2){ acHide(); return; }
+  let list = PACKAGES.filter(p => p.startsWith(tok));
+  if(list.length < 8){
+    list = list.concat(PACKAGES.filter(p => !p.startsWith(tok) && p.includes(tok))
+                               .slice(0, 8 - list.length));
+  }
+  list = list.slice(0, 8);
+  if(!list.length || (list.length===1 && list[0]===tok)){ acHide(); return; }
+  acItems = list; acIdx = -1;
+  acBox.innerHTML = list.map((n,i) =>
+    `<div class="ac-item" role="option" data-i="${i}">${n}</div>`).join("");
+  acBox.style.display = "block";
+  pkgsEl.setAttribute("aria-expanded","true");
+}
+function acPick(i){
+  pkgsEl.value = pkgsEl.value.replace(/[a-z0-9_]*$/i, acItems[i]) + " ";
+  acHide(); pkgsEl.focus(); render();
+}
+function acPaint(){
+  [...acBox.children].forEach((el,i)=>el.classList.toggle("sel", i===acIdx));
+}
+pkgsEl.addEventListener("input", acShow);
+pkgsEl.addEventListener("keydown", e=>{
+  if(acBox.style.display!=="block") return;
+  if(e.key==="ArrowDown"){ e.preventDefault(); acIdx=(acIdx+1)%acItems.length; acPaint(); }
+  else if(e.key==="ArrowUp"){ e.preventDefault(); acIdx=(acIdx-1+acItems.length)%acItems.length; acPaint(); }
+  else if(e.key==="Enter" || e.key==="Tab"){
+    if(acIdx>=0){ e.preventDefault(); acPick(acIdx); } else acHide();
+  }
+  else if(e.key==="Escape"){ acHide(); }
+});
+acBox.addEventListener("mousedown", e=>{        // mousedown fires before blur
+  const t = e.target.closest(".ac-item");
+  if(t){ e.preventDefault(); acPick(+t.dataset.i); }
+});
+pkgsEl.addEventListener("blur", ()=>setTimeout(acHide, 120));
+
+render();
+refreshSnapshots();
+</script>
+</body>
+</html>
