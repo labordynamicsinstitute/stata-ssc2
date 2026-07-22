@@ -45,9 +45,8 @@
 </div></nav>
 <main>
 <h1>Reference</h1>
-<p class="manhead">Web rendering of the Stata help file (<code>help ssc2</code>).</p>
-<p>{vieweralsosee "[R] ssc2" "mansection R ssc2"} {vieweralsosee "" "--"} {vieweralsosee "[R] ssc" "help ado update"} {viewerjumpto "Syntax" "ssc2##syntax"} {viewerjumpto "Description" "ssc2##description"} {viewerjumpto "Command overview" "ssc2##overview"} {viewerjumpto "Option for use with ssc2 describe" "ssc2##option_ssc2_describe"} {viewerjumpto "Options for use with ssc2 install" "ssc2##options_ssc2_install"} {viewerjumpto "Option for use with ssc2 type" "ssc2##option_ssc2_type"} {viewerjumpto "Options for use with ssc2 copy" "ssc2##options_ssc2_copy"} {viewerjumpto "Remarks" "ssc2##remarks"} {viewerjumpto "Examples" "ssc2##examples"}</p>
-<p class="manhead">{bf:ssc2  &mdash;}Install and uninstall packages from SSC, including from date-based snapshots of an SSC mirror</p>
+<p class="manhead">Install and uninstall packages from SSC, including from date-based snapshots of an SSC mirror. Web rendering of the Stata help file
+(<code>help ssc2</code>).</p>
 <p><a id="syntax"></a></p>
 <h2>Syntax</h2>
 <p class="hang">Describe a specified package at SSC mirror</p>
@@ -60,12 +59,6 @@
 <p class="syn"><code>ssc2</code> <code>copy</code> <i><code>filename</code></i> [<code>,</code> <code>plus</code> <code>personal</code> <code>replace</code> <code>public</code> <code>binary</code> <code>date(datespec)</code> <code>from(url)</code>]</p>
 <p class="syn">where <i>letter</i> in <code>ssc2 describe</code> is <code>a</code>-<code>z</code> or <code>_</code>, and <i>datespec</i> is a date in <b>YYYY-MM-DD</b> format or the word <b>latest</b>.</p>
 <p><a id="description"></a></p>
-<h2>Description</h2>
-<p><code>ssc2</code> works with packages (and files) from the Statistical Software Components (SSC) archive.  It extends the official <code>ssc</code> command with the ability to install packages <i>as they existed on a given date</i>, using date-based snapshots of the SSC archive stored in the <a href="https://github.com/labordynamicsinstitute/ssc-mirror">ssc-mirror</a> repository.  This supports reproducibility: an analysis can be re-run with the exact package versions that were current at a given date.</p>
-<p>When neither <code>date()</code> nor <code>from()</code> is specified, <code>ssc2</code> delegates to the official <code>ssc</code> command, so <code>ssc2</code> behaves as a strict superset of <code>ssc</code>.  The subcommands <code>new</code>, <code>hot</code>, and <code>uninstall</code> are always delegated to <code>ssc</code>.</p>
-<p>Daily snapshots exist from <b>2021-12-21</b> onward; three earlier snapshots exist (<b>2017-08-10</b>, <b>2021-04-15</b>, <b>2021-08-10</b>).  Type <code>ssc2 snapshots</code> for details.</p>
-<p>You can uninstall particular packages by using <code>ssc2</code> <code>uninstall</code>. For the packages that you keep, see <code>[R] ado update</code> for an automated way of keeping those packages up to date.</p>
-<p><a id="linkspdf"></a></p>
 <h2>Links to PDF documentation</h2>
 <p>Quick start</p>
 <p>Remarks and examples</p>

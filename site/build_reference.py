@@ -47,8 +47,11 @@ def inline(s: str) -> str:
 
 
 # ------------------------------------------------------------- structure
+SKIP_SECTIONS = {"Description"}   # covered by the About page
+
 def convert(smcl: str) -> str:
     out, para, mode = [], [], None
+    convert.description = ""
 
     def flush():
         nonlocal para, mode
@@ -58,23 +61,31 @@ def convert(smcl: str) -> str:
             out.append(f'<p class="{css}">{text}</p>' if css else f"<p>{text}</p>")
         para, mode = [], None
 
+    skipping = False                       # inside a suppressed section?
     for raw in smcl.splitlines():
         line = raw.rstrip()
         if line.startswith("{smcl}") or line.startswith("{* "):
             continue
-        if re.match(r'\{p2col', line):        # manual-style header line
-            m = re.search(r'\{p2col:(.*?)\}(.*)', line)
-            if m:
-                flush()
-                out.append(f'<p class="manhead">{inline(m.group(1))} '
-                           f'{inline(m.group(2))}</p>')
+        # help-viewer navigation: meaningless on the web, drop entirely
+        if line.lstrip().startswith(("{vieweralsosee", "{viewerjumpto")):
             continue
+        if re.match(r'\{p2col', line):        # manual-style header block
+            m = re.search(r'\{p2col:(.*?)\}(.*)', line)
+            if m and not convert.description:  # keep the one-line description
+                d = inline(m.group(2)).strip().rstrip('.')
+                convert.description = re.sub(r'^(?:&mdash;|[}\s])+', '', d)
+            continue                           # h1/subtitle replace the header
         if line.startswith("{p2colreset"):
             continue
         m = re.match(r'\{title:(.*)\}', line)
         if m:
             flush()
-            out.append(f"<h2>{inline(m.group(1))}</h2>")
+            title = m.group(1).strip()
+            skipping = title in SKIP_SECTIONS  # e.g. Description: About page covers it
+            if not skipping:
+                out.append(f"<h2>{inline(title)}</h2>")
+            continue
+        if skipping:
             continue
         if not line.strip():
             flush()
@@ -143,7 +154,8 @@ PAGE = """<!DOCTYPE html>
 </div></nav>
 <main>
 <h1>Reference</h1>
-<p class="manhead">Web rendering of the Stata help file (<code>help ssc2</code>).</p>
+<p class="manhead">{desc}. Web rendering of the Stata help file
+(<code>help ssc2</code>).</p>
 {body}
 <p class="gennote">Generated automatically from
 <code>sthlp/ssc2.sthlp</code> on {stamp}. The in-Stata help file is the
@@ -158,8 +170,17 @@ def main() -> int:
     src = sys.argv[1] if len(sys.argv) > 1 else "sthlp/ssc2.sthlp"
     dst = sys.argv[2] if len(sys.argv) > 2 else "site/reference.html"
     body = convert(open(src, encoding="utf-8").read())
+    # quality gate: no raw SMCL may survive into the page. Failing the
+    # build blocks a bad deploy and makes the problem visible in CI.
+    leftovers = re.findall(r'\{[a-zA-Z][^}]*\}', body)
+    if leftovers:
+        print("ERROR: unconverted SMCL reached the output:", file=sys.stderr)
+        for item in sorted(set(leftovers))[:10]:
+            print("   ", item, file=sys.stderr)
+        return 1
+    desc = convert.description or "Stata help for the ssc2 command"
     open(dst, "w", encoding="utf-8").write(
-        PAGE.format(body=body, stamp=date.today().isoformat()))
+        PAGE.format(body=body, desc=desc, stamp=date.today().isoformat()))
     print(f"wrote {dst} ({len(body)} chars of body) from {src}")
     return 0
 

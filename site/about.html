@@ -43,24 +43,26 @@
   <a href="articles.html">Articles</a>
 </div></nav>
 <main>
-<h1>ssc2</h1>
-<p class="lede">Install Stata packages from date-based snapshots of the
-SSC archive.</p>
+<h1>About</h1>
+<p class="lede">ssc2 &mdash; install Stata packages from date-based
+snapshots of the SSC archive.</p>
 
 <h2>What it does</h2>
-<p>The SSC archive keeps only the current version of each package: when
-an author uploads an update, the previous version is gone. That makes it
-hard to re-run older analyses with the package versions they were
-written against. <code>ssc2</code> closes that gap. It is a drop-in
+<p>The SSC archive contains only the most recent version of each
+user-written Stata package. This means that when an author uploads an
+update, the previous version is no longer available. This creates
+challenges for reproducibility as researchers seeking to replicate older
+analyses may be unable to obtain the package versions originally used.
+The goal of ssc2 is to address this limitation by serving as a drop-in
 replacement for Stata's built-in <code>ssc</code> command that can
-install packages <i>as they existed on a given date</i>, using daily
-snapshots of the archive stored in the
+install packages as they existed on a given date. It does so by using
+daily snapshots of the archive stored in the
 <a href="https://github.com/labordynamicsinstitute/ssc-mirror">ssc-mirror</a>
-repository &mdash; the same idea that dated CRAN snapshots brought to
-the R ecosystem.</p>
+repository, following the same general approach that dated CRAN
+snapshots introduced for the R ecosystem.</p>
 <p>When no date is requested, <code>ssc2</code> simply delegates to the
-official <code>ssc</code> command, so existing workflows keep working
-unchanged.</p>
+official <code>ssc</code> command, ensuring that existing workflows
+continue to function unchanged.</p>
 
 <h2>Installation</h2>
 <pre>net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/main")</pre>
@@ -92,7 +94,8 @@ Stata global or environment variable &mdash; see the
 </ul>
 
 <h2>Authors</h2>
-<p>Lars Vilhuber (Labor Dynamics Institute, Cornell University) and
+<p>Lars Vilhuber (Labor Dynamics Institute, Cornell University)<br>
+Ian Joyce (AEA Data Replicator Intern, University of Notre Dame) and
 contributors.</p>
 
 <h2>Citation</h2>

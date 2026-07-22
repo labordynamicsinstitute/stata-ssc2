@@ -154,7 +154,8 @@
   <fieldset>
     <legend>Mirror</legend>
     <label for="mirrorsel">Snapshot mirror
-      <span class="hint">(institutions can run internal mirrors with the same layout)</span></label>
+      <span class="hint">(institutions can run internal mirrors with the same
+      layout; a custom mirror is set once per session, not per package)</span></label>
     <div class="row" style="width:100%">
       <select id="mirrorsel" style="flex:1">
         <option value="default">labordynamicsinstitute/ssc-mirror &mdash; public, GitHub</option>
@@ -298,6 +299,13 @@ function render(){
     lines.push('<span class="p">. </span>net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/main")');
     lines.push('');
   }
+  if(mirrorURL() !== DEFAULT_MIRROR){
+    const safe = mirrorURL().replace(/["<>&]/g,"");
+    lines.push('<span class="cm">* point ssc2 at your mirror (once per session,</span>');
+    lines.push('<span class="cm">* or put this line in your profile.do)</span>');
+    lines.push(`<span class="p">. </span>global SSC2_MIRROR "${safe}"`);
+    lines.push('');
+  }
   if(!names.length){
     lines.push('<span class="err">Enter a package name above to generate a command.</span>');
   }
@@ -306,10 +314,8 @@ function render(){
       lines.push(`<span class="err">"${n.replace(/[<>&]/g,"")}" is not a valid package name</span>`);
       continue;
     }
-    const extras = [];
-    if(freeze) extras.push(`date(${currentDate()})`);
-    if(mirrorURL() !== DEFAULT_MIRROR) extras.push(`from("${mirrorURL()}")`);
-    const opt = extras.length ? `, <span class="opt">${extras.join(" ")}</span>` : "";
+    const opt = freeze
+      ? `, <span class="opt">date(${currentDate()})</span>` : "";
     lines.push(`<span class="p">. </span>ssc2 install ${n}${opt}`);
   }
   $("out").innerHTML = lines.join("\n") + '\n<span class="p">. </span><span class="cursor"></span>';
