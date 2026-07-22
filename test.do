@@ -7,7 +7,7 @@
 // -----------------------------------------------------------------------
 clear all
 version 14
-
+log using test1.log, replace
 // ---- helper: assert the installed reghdfe.ado starbang contains a string
 capture program drop assert_reghdfe_version
 program define assert_reghdfe_version
@@ -48,6 +48,14 @@ ssc2 uninstall reghdfe
 ssc2 install reghdfe, date(2022-1-7)
 assert_reghdfe_version "5.7.3"
 ssc2 uninstall reghdfe
+
+// ---- 3b. repeated dated installs supersede, never accumulate ------------
+ssc2 install reghdfe, date(2022-01-07)
+ssc2 install reghdfe, date(2024-09-27) replace
+ssc2 install reghdfe, date(2023-06-15) replace
+ssc2 uninstall reghdfe           // must succeed: exactly one tracked copy
+capture noisily which reghdfe
+assert _rc!=0                    // and it is really gone
 
 // ---- 4. date(latest): releases branch of the mirror ---------------------
 ssc2 install reghdfe, date(latest)
@@ -96,3 +104,5 @@ di "=== SYSTEM DIAGNOSTICS ==="
 creturn list
 query
 di "=========================="
+
+log close _all

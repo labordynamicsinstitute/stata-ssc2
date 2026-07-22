@@ -1,7 +1,63 @@
 {smcl}
 
-{txt}{net "from http://repec.org/bocode":SSC} Stata modules created or revised 2026-06-14 to 2026-07-14
+{txt}{net "from http://repec.org/bocode":SSC} Stata modules created or revised 2026-06-22 to 2026-07-22
 {hline}
+
+{net "describe http://repec.org/bocode/n/ntables":NTABLES}
+{txt} module to export journal-style publication-ready tables{txt} Authors: Ajay Kumar Samariya       Req: Stata version 16 (rforest from SSC required for rf option)
+{txt} Created: 2026-07-22
+
+{net "describe http://repec.org/bocode/m/mindf":MINDF}
+{txt} module to perform HLT unit root tests with up to three breaks in trend (Harvey, Leybourne and Taylor, 2013){txt} Authors:      Req: Stata version 14
+{txt} Created: 2026-07-22
+
+{net "describe http://repec.org/bocode/l/lsmlm":LSMLM}
+{txt} module to perform Lee-Strazicich minimum LM unit root test with zero, one, or two breaks{txt} Authors: Ibrahim Ongoren       Req: Stata version 14
+{txt} Created: 2026-07-22
+
+{net "describe http://repec.org/bocode/b/byperron":BYPERRON}
+{txt} module to determine structural breaks in time series models (Bai-Perron, 2003; Yamamoto-Perron, 2013) {txt} Authors: Ozan Eruygur       Req: Stata version 14
+{txt} Created: 2026-07-22
+
+{net "describe http://repec.org/bocode/b/bootur":BOOTUR}
+{txt} module to perform bootstrap unit root tests for single series, multiple series and panels {txt} Authors:   Merwan Roudane       Req: Stata version 14
+{txt} Created: 2026-07-22
+
+{net "describe http://repec.org/bocode/r/regbreak":REGBREAK}
+{txt} module to provide estimation and inference for structural breaks in the coefficients and error variance of a linear regression{txt} Authors:   Merwan Roudane       Req: Stata version 14
+{txt} Created: 2026-07-19
+
+{net "describe http://repec.org/bocode/p/prcoint":PRCOINT}
+{txt} module to perform Perron and Rodriguez (2016) residual-based tests for cointegration under endogeneity and serial correlation {txt} Authors: Ozan Eruygur       Req: Stata version 14
+{txt} Created: 2026-07-19
+
+{net "describe http://repec.org/bocode/k/kperrony":KPERRONY}
+{txt} module to determine the number and dates of structural breaks in cointegrated equations, with regime-wise estimates and stability tests {txt} Authors: Ozan Eruygur       Req: Stata version 14
+{txt} Created: 2026-07-18
+
+{net "describe http://repec.org/bocode/x/xtoutliers":XTOUTLIERS}
+{txt} module providing outlier detection and robust estimation for panel data {txt} Authors:   Merwan Roudane       Req: Stata version 14
+{txt} Created: 2026-07-18
+
+{net "describe http://repec.org/bocode/k/kypshift":KYPSHIFT}
+{txt} module to test shifts between I(1) and I(0) regimes at unknown dates (Kejriwal-Yu-Perron 2020) {txt} Authors: Ozan Eruygur       Req: Stata version 16
+{txt} Created: 2026-07-18
+
+{net "describe http://repec.org/bocode/k/kstest":KSTEST}
+{txt} module to perform weighted two-sample Kolmogorov-Smirnov equality-of-distributions test {txt} Authors: Ariel Linden       Req: Stata version 11
+{txt} Created: 2026-07-17
+
+{net "describe http://repec.org/bocode/x/xtcombreak":XTCOMBREAK}
+{txt} module to estimate the common break date with a confidence interval (Bai 2010) and test whether the break really is common across units (Jiang and Kurozumi 2026){txt} Authors:   Merwan Roudane       Req: Stata version 14
+{txt} Created: 2026-07-17
+
+{net "describe http://repec.org/bocode/o/okpreserve":OKPRESERVE}
+{txt} module to implement nested preserve and restore for data workflows{txt} Authors: Vikrant V. Kamble       Req: Stata version 19
+{txt} Created: 2026-07-16
+
+{net "describe http://repec.org/bocode/l/latinobarometro":LATINOBAROMETRO}
+{txt} module to load, standardize, and enrich a Latinobarometro survey wave{txt} Authors: Jorge Soler-Lopez       Req: Stata version 14
+{txt} Created: 2026-07-15
 
 {net "describe http://repec.org/bocode/c/chord":CHORD}
 {txt} module to draw chord diagrams{txt} Authors: Jiajun Zhou  De Zhou       Req: Stata version 15
@@ -12,8 +68,8 @@
 {txt} Created: 2026-07-13
 
 {net "describe http://repec.org/bocode/r/recode12":RECODE12}
-{txt} module to standardize 1/2-coded variables as labeled 0/1 indicators{txt} Authors:  Hao Ma       Req: Stata version 19.5
-{txt} Created: 2026-07-13
+{txt} module to standardize numeric 1/2 variables and corresponding two-category string variables as labeled 0/1 indicators{txt} Authors:  Hao Ma       Req: Stata version 19.5
+{txt} Revised: 2026-07-19
 
 {net "describe http://repec.org/bocode/h/hpcm":HPCM}
 {txt} module compting Hosoya (2001) partial measures of causality by one-way-effect elimination{txt} Authors:   Merwan Roudane       Req: Stata version 14
@@ -135,45 +191,13 @@
 {txt} module to provide client for the Survey Solutions (SuSo) REST API{txt} Authors: Attique Ur Rehman       Req: Stata version 14.2
 {txt} Created: 2026-06-23
 
-{net "describe http://repec.org/bocode/x/xtnonlincoint":XTNONLINCOINT}
-{txt} module providing nonlinear panel cointegration tests robust to structural breaks and cross-sectional dependence{txt} Authors:   Merwan Roudane       Req: Stata version 14
-{txt} Created: 2026-06-22
-
 {net "describe http://repec.org/bocode/f/fm":FM}
 {txt} module to manage file classifications{txt} Authors: Wu LiangHai  Chen Liwen    Wu Hanyan       Req: Stata version 16
 {txt} Revised: 2026-07-13
 
-{net "describe http://repec.org/bocode/x/xtpqcce":XTPQCCE}
-{txt} module providing panel quantile CCE mean-group estimators (QCCEMG & CCEMG-CSQR){txt} Authors:   Merwan Roudane       Req: Stata version 15.1
-{txt} Created: 2026-06-21
-
-{net "describe http://repec.org/bocode/v/varck":VARCK}
-{txt} module to check existence of variables in Stata memory{txt} Authors: Wu LiangHai  Yang Lu    Hu Fangfang  Chen Liwen    Wu Hanyan       Req: Stata version 14
-{txt} Created: 2026-06-21
-
-{net "describe http://repec.org/bocode/m/myinterval":MYINTERVAL}
-{txt} module to compute confidence intervals for the mean using the t-distribution{txt} Authors: Wu LiangHai    Wu Hanyan  Chen Liwen       Req: Stata version 15
-{txt} Created: 2026-06-21
-
 {net "describe http://repec.org/bocode/e/editprofile":EDITPROFILE}
 {txt} module to maintain profile.do settings{txt} Authors: Wu LiangHai       Req: Stata version 14
 {txt} Revised: 2026-07-10
-
-{net "describe http://repec.org/bocode/s/stackscpvals":STACKSCPVALS}
-{txt} module providing post-estimation handling of synthetic controls {txt} Authors: 	  Justin C. Wiltshire       Req: Stata version 13
-{txt} Created: 2026-06-19
-
-{net "describe http://repec.org/bocode/m/mhtopt":MHTOPT}
-{txt} module for Optimal Multiple Hypothesis Testing{txt} Authors: Davide Viviano  Kaspar Wuthrich  Paul Niehaus  Erick Rosas Lopez       Req: Stata version 15
-{txt} Created: 2026-06-19
-
-{net "describe http://repec.org/bocode/l/littext":LITTEXT}
-{txt} module to automate construct discovery and relationship inference from an academic text{txt} Authors:  Nebojsa S. Davcik       Req: Stata version 19 and Python packages spacy, sentence-transformers, hdbscan, scikit-learn, umap-learn, networkx, pandas, and numpy
-{txt} Created: 2026-06-19
-
-{net "describe http://repec.org/bocode/r/reduce_aigc":REDUCE_AIGC}
-{txt} module to reduce AIGC similarity in Word documents {txt} Authors: Wu LiangHai    Wu Hanyan  Chen Liwen       Req: Stata version 12
-{txt} Created: 2026-06-17
 
 {net "describe http://repec.org/bocode/a/addlegend":ADDLEGEND}
 {txt} module to add a custom legend to a twoway graph{txt} Authors: Ben Jann       Req: Stata version 14 and addplot from SSC (q.v.)
@@ -183,17 +207,13 @@
 {txt} module to test parallel trends assumption for difference-in-differences models{txt} Authors:     Guanpeng Yan  Qiang Chen       Req: Stata version 16
 {txt} Revised: 2026-06-29
 
-{net "describe http://repec.org/bocode/t/trialcounts":TRIALCOUNTS}
-{txt} module to calculate the number of subjects recruited to, and the number having reached subsequent scheduled visits{txt} Authors: Matthew Burnell       Req: Stata version 17
-{txt} Revised: 2026-06-17
+{net "describe http://repec.org/bocode/a/asycaus":ASYCAUS}
+{txt} module to provide Asymmetric Granger-Causality Suite {txt} Authors:   Merwan Roudane       Req: Stata version 14 
+{txt} Revised: 2026-07-19
 
-{net "describe http://repec.org/bocode/m/mixedpower":MIXEDPOWER}
-{txt} module to calculate power or sample size analytically for linear mixed-effects models{txt} Authors: Matthew Burnell       Req: Stata version 17
-{txt} Revised: 2026-06-17
-
-{net "describe http://repec.org/bocode/x/xicor":XICOR}
-{txt} module to estimate Chatterjee's rank correlation {txt} Authors: Daniel Klein       Req: Stata version 11.2
-{txt} Revised: 2026-06-22
+{net "describe http://repec.org/bocode/f/fourierur":FOURIERUR}
+{txt} module for Flexible Fourier Form unit root and stationarity tests{txt} Authors:   Merwan Roudane       Req: Stata version 14 
+{txt} Revised: 2026-07-16
 
 {net "describe http://repec.org/bocode/x/xtdpthresh":XTDPTHRESH}
 {txt} module to estimate Dynamic Panel Threshold Model with Endogeneity{txt} Authors: Duy Chinh Nguyen  Nhat Duy Lai       Req: Stata version 15
@@ -239,9 +259,17 @@
 {txt} module to perform Maki (2012) cointegration test with multiple structural breaks{txt} Authors:   Merwan Roudane       Req: Stata version 14
 {txt} Revised: 2026-06-29
 
-{net "describe http://repec.org/bocode/u/undid":UNDID}
-{txt} module to compute Difference-in-differences with unpoolable data{txt} Authors: Eric Jamieson       Req: Stata version 16
-{txt} Revised: 2026-06-17
+{net "describe http://repec.org/bocode/a/adtest":ADTEST}
+{txt} module to perform a two-sample Anderson-Darling equality-of-distributions test{txt} Authors: Ariel Linden       Req: Stata version 11
+{txt} Revised: 2026-07-17
+
+{net "describe http://repec.org/bocode/c/cvmtest":CVMTEST}
+{txt} module to perform a two-sample Cramer-von Mises equality-of-distributions test{txt} Authors: Ariel Linden       Req: Stata version 11
+{txt} Revised: 2026-07-17
+
+{net "describe http://repec.org/bocode/b/blockboot":BLOCKBOOT}
+{txt} module to implement four bootstrap schemes for dependent timeseries data{txt} Authors: Christopher F Baum  Jesús Otero       Req: Stata version 14 
+{txt} Revised: 2026-07-15
 
 {net "describe http://repec.org/bocode/x/xttest4":XTTEST4}
 {txt} module to calculate heterokedasticity tests for fixed-T panel data models{txt} Authors: Manh Hoang-Ba       Req: Stata version 11
@@ -259,9 +287,9 @@
 {txt} module to calculate Loevinger's H for two dichotomous variables{txt} Authors: Dirk Enzmann       Req: Stata version 14
 {txt} Revised: 2026-07-14
 
-{net "describe http://repec.org/bocode/s/sdid_event":SDID_EVENT}
-{txt} module providing Synthetic Difference-in-Differences (SDID) event-study estimators{txt} Authors:  Diego Ciccia  Damian Clarke  Daniel Pailañir       Req: Stata version 12 and sdid, unique from SSC (q.v.)
-{txt} Revised: 2026-06-17
+{net "describe http://repec.org/bocode/x/xtdpdserial":XTDPDSERIAL}
+{txt} module to perform panel data serial correlation tests{txt} Authors:  Sebastian Kripfganz       Req: Stata version 13
+{txt} Revised: 2026-07-17
 
 {net "describe http://repec.org/bocode/d/did_multiplegt_dyn":DID_MULTIPLEGT_DYN}
 {txt} module to estimate event-study Difference-in-Difference (DID) estimators in designs with multiple groups and periods, with a potentially non-binary treatment that may increase or decrease multiple times{txt} Authors:  Clément de Chaisemartin    Diego Ciccia    Xavier D'Haultfoeuille    Felix Knau   Mélitine Malézieux   Doulo Sow       Req: Stata version 12 and gtools from SSC (q.v.)
@@ -301,11 +329,7 @@
 
 {net "describe http://repec.org/bocode/a/allsynth":ALLSYNTH}
 {txt} module to automate estimation of (i) bias-corrected synthetic control gaps ("treatment effects"){txt} Authors: 	  Justin C. Wiltshire       Req: Stata version 15.1 and synth, distinct, elasticregress from SSC (q.v.)
-{txt} Revised: 2026-06-25
-
-{net "describe http://repec.org/bocode/s/sdid":SDID}
-{txt} module to perform synthetic difference-in-differences estimation, inference, and visualization{txt} Authors: Daniel Pailañir  Damian Clarke   Diego Ciccia       Req: Stata version 13
-{txt} Revised: 2026-06-17
+{txt} Revised: 2026-07-15
 
 {net "describe http://repec.org/bocode/r/rqr":RQR}
 {txt} module to estimate the residualized quantile regression model{txt} Authors: Nicolai T. Borgen     Andreas Haupt  Øyvind Wiborg       Req: Stata version 12 and qrprocess, reghdfe from SSC (q.v.)
@@ -323,9 +347,9 @@
 {txt} module to provide Ensemble Learning Targeted Maximum Likelihood Estimation{txt} Authors:  Miguel Angel Luque-Fernandez       Req: Stata version 13.2 and R
 {txt} Revised: 2026-06-25
 
-{net "describe http://repec.org/bocode/n/nb_adjust":NB_ADJUST}
-{txt} module to identify and adjust outliers of a variable assumed to follow a negative binomial distribution{txt} Authors: Dirk Enzmann       Req: Stata version 12.1
-{txt} Revised: 2026-06-17
+{net "describe http://repec.org/bocode/w/weakivtest":WEAKIVTEST}
+{txt} module to perform weak instrument test for a single endogenous regressor in TSLS and LIML {txt} Authors:  Carolin E. Pflueger  Su Wang       Req: Stata version 10 and avar from SSC (q.v.)
+{txt} Revised: 2026-07-22
 
 {net "describe http://repec.org/bocode/m/midas":MIDAS}
 {txt} module for meta-analytical integration of diagnostic test accuracy studies {txt} Authors:  Ben Dwamena       Req: Stata version 16, xsvmat from SSC (q.v.)
@@ -337,7 +361,7 @@
 
 {hline}
 {txt} End of recent additions and updates
-{txt} Packages Created: 36 
-{txt} Packages Revised: 47 
-{txt} Total Packages:   3901 
+{txt} Packages Created: 41 
+{txt} Packages Revised: 48 
+{txt} Total Packages:   3915 
 

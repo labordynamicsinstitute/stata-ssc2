@@ -1,4 +1,4 @@
-*! version 2.0.0-draft 08jul2026  L. Vilhuber and contributors
+*! version 2.1.0-draft 22jul2026  L. Vilhuber and contributors
 *! Install Stata packages from date-based snapshots of the SSC archive,
 *! mirrored at https://github.com/labordynamicsinstitute/ssc-mirror
 *!
@@ -323,6 +323,14 @@ program define ssc2_install
 		error `rc'
 	}
 
+	* Supersede: remove previously installed copies of this package.
+	* Each snapshot date is a distinct source URL, so without this,
+	* repeated dated installs accumulate multiple tracker entries and
+	* -ado uninstall pkgname- later fails ("criterion matches more than
+	* one package"). Runs only after net describe confirmed the package
+	* exists in the requested snapshot.
+	RemoveInstalled `pkgname'
+
 	di as result `"snapshot selected: `shown'"'
 	di as result `"installing from  `url'..."'
 	capture noisily net install `pkgname', `all' `replace' `options'
@@ -333,6 +341,67 @@ program define ssc2_install
 */ `"{p}{bf:ssc2 install}: apparent error in the package file for {bf:`pkgname'} in this snapshot; please open an issue at {browse "https://github.com/labordynamicsinstitute/ssc-mirror/issues":the mirror repository}, providing the package name and date{p_end}"'
 	}
 	exit `rc'
+end
+
+
+* Remove all installed packages named exactly `pkgname'. Captures the
+* output of -ado dir- into a temporary plain-text log (restoring any
+* open log, as in LogOutput), extracts the [#] entry numbers, and
+* uninstalls them from the highest number down so numbering stays valid.
+program define RemoveInstalled
+	args pkgname
+	tempfile lst
+
+	quietly log
+	local logtype   `"`r(type)'"'
+	local logstatus `"`r(status)'"'
+	local logfn     `"`r(filename)'"'
+
+	nobreak {
+		if `"`logtype'"' != "" {
+			qui log close
+		}
+		capture break {
+			qui log using `"`lst'"', text replace
+			capture noisily ado dir `pkgname'
+			qui log close
+		}
+		local rc = _rc
+		capture log close
+		if "`logtype'" != "" {
+			qui log using `"`logfn'"', append `logtype'
+			if "`logstatus'" != "on" {
+				qui log off
+			}
+		}
+	}
+	if `rc' {
+		* could not produce the listing; do not block the install
+		exit 0
+	}
+
+	local nums
+	tempname fh
+	file open `fh' using `"`lst'"', read text
+	file read `fh' line
+	while r(eof)==0 {
+		local lline = lower(`"`line'"')
+		if regexm(`"`lline'"', "^\[([0-9]+)\][ ]+package[ ]+`pkgname'([ ]|$)") {
+			local nums `nums' `=regexs(1)'
+		}
+		file read `fh' line
+	}
+	file close `fh'
+
+	local n : word count `nums'
+	if `n' > 0 {
+		di as txt "(superseding `n' previously installed cop" ///
+			cond(`n'==1,"y","ies") " of `pkgname')"
+		forvalues i = `n'(-1)1 {
+			local k : word `i' of `nums'
+			capture quietly ado uninstall [`k']
+		}
+	}
 end
 
 

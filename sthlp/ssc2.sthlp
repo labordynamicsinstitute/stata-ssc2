@@ -199,7 +199,11 @@ The above sections are not included in this help file.
 {opt date(datespec)} selects the snapshot of the SSC archive as of the
     specified date.  {it:datespec} is either a date in {bf:YYYY-MM-DD}
     format (for example, {cmd:date(2022-01-07)}) or {bf:latest}, which uses
-    the most recently mirrored state of the archive.  If no snapshot exists
+    the most recently mirrored state of the archive.  With
+    {cmd:ssc2 install}, a dated install first removes any previously
+    installed copies of the same package, so repeated dated installs
+    supersede one another rather than accumulating multiple entries in
+    the ado directory.  If no snapshot exists
     for the specified date, an error message points to the
     {browse "https://github.com/labordynamicsinstitute/ssc-mirror/tags":list of available snapshot dates}.
 
