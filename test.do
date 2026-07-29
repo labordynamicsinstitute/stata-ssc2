@@ -7,7 +7,7 @@
 // -----------------------------------------------------------------------
 clear all
 version 14
-log using test1.log, replace
+
 // ---- helper: assert the installed reghdfe.ado starbang contains a string
 capture program drop assert_reghdfe_version
 program define assert_reghdfe_version
@@ -49,13 +49,38 @@ ssc2 install reghdfe, date(2022-1-7)
 assert_reghdfe_version "5.7.3"
 ssc2 uninstall reghdfe
 
-// ---- 3b. repeated dated installs supersede, never accumulate ------------
+// ---- 3b. replace / update / replaceall semantics -------------------------
+// ground truth: reghdfe is 5.7.3 in 2022-01-07 and 6.12.3 in 2024-09-27
 ssc2 install reghdfe, date(2022-01-07)
-ssc2 install reghdfe, date(2024-09-27) replace
-ssc2 install reghdfe, date(2023-06-15) replace
-ssc2 uninstall reghdfe           // must succeed: exactly one tracked copy
+* no option + existing installation: refused (native ssc-like behavior)
+capture noisily ssc2 install reghdfe, date(2024-09-27)
+assert_reghdfe_version "5.7.3"            // unchanged either way
+* replace reinstalls the SAME snapshot only
+ssc2 install reghdfe, date(2022-01-07) replace
+assert_reghdfe_version "5.7.3"
+capture noisily ssc2 install reghdfe, date(2024-09-27) replace
+assert _rc==110                            // different snapshot: refused
+assert_reghdfe_version "5.7.3"
+* update moves forward...
+ssc2 install reghdfe, date(2024-09-27) update
+assert_reghdfe_version "6.12.3"
+* ...but never backward (friendly no-op, rc 0)
+ssc2 install reghdfe, date(2022-01-07) update
+assert_reghdfe_version "6.12.3"
+* replaceall replaces anything, downgrades included
+ssc2 install reghdfe, date(2022-01-07) replaceall
+assert_reghdfe_version "5.7.3"
+ssc2 uninstall reghdfe            // exactly one tracked copy throughout
 capture noisily which reghdfe
-assert _rc!=0                    // and it is really gone
+assert _rc!=0
+* update/replaceall require a snapshot context
+capture noisily ssc2 install reghdfe, update
+assert _rc==198
+capture noisily ssc2 install reghdfe, replaceall
+assert _rc==198
+* only one of the three may be given
+capture noisily ssc2 install reghdfe, date(2022-01-07) replace update
+assert _rc==198
 
 // ---- 4. date(latest): releases branch of the mirror ---------------------
 ssc2 install reghdfe, date(latest)
@@ -104,5 +129,3 @@ di "=== SYSTEM DIAGNOSTICS ==="
 creturn list
 query
 di "=========================="
-
-log close _all

@@ -1,4 +1,4 @@
-*! version 2.1.0-draft 22jul2026  L. Vilhuber and contributors
+*! version 2.2.0-draft 23jul2026  L. Vilhuber and contributors
 *! Install Stata packages from date-based snapshots of the SSC archive,
 *! mirrored at https://github.com/labordynamicsinstitute/ssc-mirror
 *!
@@ -290,10 +290,14 @@ program define ssc2_install
 	gettoken pkgname 0 : 0, parse(" ,")
 	CheckPkgname "ssc2 install" `"`pkgname'"'
 	local pkgname `"`s(pkgname)'"'
-	syntax [, ALL REPLACE DATE(string) FROM(string) *]
+	syntax [, ALL REPLACE UPDATE REPLACEALL DATE(string) FROM(string) *]
 
 	* no snapshot requested: delegate fully to official ssc
 	if `"`date'`from'"'=="" {
+		if "`update'`replaceall'" != "" {
+			di as err "options {bf:update} and {bf:replaceall} require {bf:date()} or {bf:from()}"
+			exit 198
+		}
 		ssc install `pkgname', `all' `replace' `options'
 		exit
 	}
@@ -323,13 +327,79 @@ program define ssc2_install
 		error `rc'
 	}
 
-	* Supersede: remove previously installed copies of this package.
-	* Each snapshot date is a distinct source URL, so without this,
-	* repeated dated installs accumulate multiple tracker entries and
-	* -ado uninstall pkgname- later fails ("criterion matches more than
-	* one package"). Runs only after net describe confirmed the package
-	* exists in the requested snapshot.
-	RemoveInstalled `pkgname'
+	* --- replace / update / replaceall semantics -----------------------
+	* Background: each snapshot date is a distinct source URL, so without
+	* explicit handling, repeated dated installs accumulate multiple
+	* tracker entries and -ado uninstall pkgname- later fails ("criterion
+	* matches more than one package").  The "version" compared here is
+	* the snapshot date recovered from each installed copy's source URL;
+	* copies installed from plain SSC have no such date and count as
+	* not comparable.
+	*   (nothing)   existing installation refused, as official ssc does
+	*   replace     reinstall the SAME snapshot only
+	*   update      move to a NEWER snapshot only; older is a no-op
+	*   replaceall  replace ANY installed version, downgrades included
+	local nopts = ("`replace'"!="") + ("`update'"!="") + ("`replaceall'"!="")
+	if `nopts' > 1 {
+		di as err "only one of {bf:replace}, {bf:update}, and {bf:replaceall} may be specified"
+		exit 198
+	}
+	ScanInstalled `pkgname'
+	local ninst  = r(n)
+	local nums   `"`r(nums)'"'
+	local idates `"`r(dates)'"'
+	if `ninst' > 0 & "`ref'"=="releases" & `nopts' > 0 & "`replaceall'"=="" {
+		di as err "with {bf:date(latest)}, installed versions cannot be compared by date;"
+		di as err "use {bf:replaceall} to replace unconditionally"
+		exit 110
+	}
+	else if `ninst' > 0 & "`replaceall'" != "" {
+		di as txt "(replaceall: superseding `ninst' installed cop" ///
+			cond(`ninst'==1,"y","ies") " of `pkgname')"
+		RemoveByNums `nums'
+		local replace replace
+	}
+	else if `ninst' > 0 & "`replace'" != "" {
+		local same 1
+		foreach d of local idates {
+			if "`d'" != "`ref'" local same 0
+		}
+		if `same' {
+			di as txt "(replace: reinstalling snapshot `ref' of `pkgname')"
+			RemoveByNums `nums'
+		}
+		else {
+			di as err "{bf:ssc2 install}: an installed copy of {bf:`pkgname'} is not snapshot `ref' (found: `idates'; . = no snapshot date)"
+			di as err "  {bf:replace} only reinstalls the same snapshot;"
+			di as err "  use {bf:update} to move to a newer snapshot, or {bf:replaceall} to replace any version"
+			exit 110
+		}
+	}
+	else if `ninst' > 0 & "`update'" != "" {
+		local newest ""
+		local unknown 0
+		foreach d of local idates {
+			if "`d'"=="." local unknown 1
+			else if "`d'" > "`newest'" local newest "`d'"
+		}
+		if `unknown' {
+			di as err "{bf:ssc2 install}: an installed copy of {bf:`pkgname'} has no snapshot date (installed from SSC directly?), so versions cannot be compared"
+			di as err "  use {bf:replaceall} to replace unconditionally"
+			exit 110
+		}
+		if "`ref'" > "`newest'" {
+			di as txt "(update: superseding snapshot `newest' with `ref')"
+			RemoveByNums `nums'
+			local replace replace
+		}
+		else {
+			di as txt "(installed snapshot `newest' is the same as or newer than `ref'; nothing to do)"
+			di as txt "(use {bf:replaceall} to downgrade)"
+			exit 0
+		}
+	}
+	* ninst>0 with no option: proceed without pre-removal; net install
+	* will refuse because files exist, matching official ssc behavior.
 
 	di as result `"snapshot selected: `shown'"'
 	di as result `"installing from  `url'..."'
@@ -344,13 +414,18 @@ program define ssc2_install
 end
 
 
-* Remove all installed packages named exactly `pkgname'. Captures the
-* output of -ado dir- into a temporary plain-text log (restoring any
-* open log, as in LogOutput), extracts the [#] entry numbers, and
-* uninstalls them from the highest number down so numbering stays valid.
-program define RemoveInstalled
+* Scan installed packages named exactly `pkgname'. Captures the output
+* of -ado dir- into a temporary plain-text log (widening the linesize so
+* source URLs do not wrap, and restoring any open log as in LogOutput),
+* then returns:
+*   r(n)      number of installed copies
+*   r(nums)   their [#] entry numbers, in listing order
+*   r(dates)  the snapshot date parsed from each copy's source URL,
+*             aligned with r(nums); "." when the URL carries no date
+program define ScanInstalled, rclass
 	args pkgname
 	tempfile lst
+	local oldls = c(linesize)
 
 	quietly log
 	local logtype   `"`r(type)'"'
@@ -362,12 +437,14 @@ program define RemoveInstalled
 			qui log close
 		}
 		capture break {
+			capture set linesize 255
 			qui log using `"`lst'"', text replace
 			capture noisily ado dir `pkgname'
 			qui log close
 		}
 		local rc = _rc
 		capture log close
+		capture set linesize `oldls'
 		if "`logtype'" != "" {
 			qui log using `"`logfn'"', append `logtype'
 			if "`logstatus'" != "on" {
@@ -376,31 +453,64 @@ program define RemoveInstalled
 		}
 	}
 	if `rc' {
-		* could not produce the listing; do not block the install
+		* could not produce the listing; report nothing installed
+		return scalar n = 0
 		exit 0
 	}
 
 	local nums
+	local dates
+	local cur ""
+	local curdate "."
 	tempname fh
 	file open `fh' using `"`lst'"', read text
 	file read `fh' line
 	while r(eof)==0 {
 		local lline = lower(`"`line'"')
 		if regexm(`"`lline'"', "^\[([0-9]+)\][ ]+package[ ]+`pkgname'([ ]|$)") {
-			local nums `nums' `=regexs(1)'
+			if "`cur'" != "" {
+				local nums  `nums' `cur'
+				local dates `dates' `curdate'
+			}
+			local cur = regexs(1)
+			local curdate "."
+			if regexm(`"`lline'"', "/([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9])/") {
+				local curdate = regexs(1)
+			}
+		}
+		else if regexm(`"`lline'"', "^\[([0-9]+)\][ ]+package[ ]") {
+			* a different package's header: close any open match
+			if "`cur'" != "" {
+				local nums  `nums' `cur'
+				local dates `dates' `curdate'
+			}
+			local cur ""
+		}
+		else if "`cur'" != "" & "`curdate'"=="." {
+			if regexm(`"`lline'"', "/([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9])/") {
+				local curdate = regexs(1)
+			}
 		}
 		file read `fh' line
 	}
 	file close `fh'
+	if "`cur'" != "" {
+		local nums  `nums' `cur'
+		local dates `dates' `curdate'
+	}
 
-	local n : word count `nums'
-	if `n' > 0 {
-		di as txt "(superseding `n' previously installed cop" ///
-			cond(`n'==1,"y","ies") " of `pkgname')"
-		forvalues i = `n'(-1)1 {
-			local k : word `i' of `nums'
-			capture quietly ado uninstall [`k']
-		}
+	return scalar n = `: word count `nums''
+	return local nums  `"`nums'"'
+	return local dates `"`dates'"'
+end
+
+* Uninstall the listed [#] entries from the highest number down, so the
+* remaining numbering stays valid throughout.
+program define RemoveByNums
+	local n : word count `0'
+	forvalues i = `n'(-1)1 {
+		local k : word `i' of `0'
+		capture quietly ado uninstall [`k']
 	}
 end
 

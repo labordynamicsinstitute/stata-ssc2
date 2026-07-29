@@ -52,7 +52,7 @@
 <p class="hang">Describe a specified package at SSC mirror</p>
 <p class="syn"><code>ssc2</code> <code>describe</code> &#123; <i>pkgname</i> | <i>letter</i> &#125; [<code>,</code> <code>saving(</code><i><code>filename</code></i>[<code>, replace</code>]<code>)</code> <code>date(datespec)</code> <code>from(url)</code>]</p>
 <p class="hang">Install a specified package from SSC mirror</p>
-<p class="syn"><code>ssc2</code> <code>install</code> <i>pkgname</i> [<code>,</code> <code>all</code> <code>replace</code> <code>date(datespec)</code> <code>from(url)</code>]</p>
+<p class="syn"><code>ssc2</code> <code>install</code> <i>pkgname</i> [<code>,</code> <code>all</code> <code>replace</code> <code>update</code> <code>replaceall</code> <code>date(datespec)</code> <code>from(url)</code>]</p>
 <p class="hang">Type a specific file stored at SSC mirror</p>
 <p class="syn"><code>ssc2</code> <code>type</code> <i><code>filename</code></i> [<code>, asis</code> <code>date(datespec)</code> <code>from(url)</code>]</p>
 <p class="hang">Copy a specific file from SSC mirror to your computer</p>
@@ -80,7 +80,7 @@
 <p class="hang"><code>author(</code><i>name</i><code>)</code>      lists the 10 most popular packages by the specified author.      If <code>n(</code><i>#</i><code>)</code> is also specified, the top <i>#</i>      packages are listed.</p>
 <p><a id="options_snapshot"></a></p>
 <h2>Options for selecting a snapshot (describe, install, type, copy)</h2>
-<p class="hang"><code>date(datespec)</code> selects the snapshot of the SSC archive as of the     specified date.  <i>datespec</i> is either a date in <b>YYYY-MM-DD</b>     format (for example, <code>date(2022-01-07)</code>) or <b>latest</b>, which uses     the most recently mirrored state of the archive.  With     <code>ssc2 install</code>, a dated install first removes any previously     installed copies of the same package, so repeated dated installs     supersede one another rather than accumulating multiple entries in     the ado directory.  If no snapshot exists     for the specified date, an error message points to the     <a href="https://github.com/labordynamicsinstitute/ssc-mirror/tags">list of available snapshot dates</a>.</p>
+<p class="hang"><code>date(datespec)</code> selects the snapshot of the SSC archive as of the     specified date.  <i>datespec</i> is either a date in <b>YYYY-MM-DD</b>     format (for example, <code>date(2022-01-07)</code>) or <b>latest</b>, which uses     the most recently mirrored state of the archive.  With     <code>ssc2 install</code>, how an already-installed copy of the same package     is handled is governed by <code>replace</code>, <code>update</code>, and     <code>replaceall</code>; see     <code>Options for use with ssc2 install</code>.  If no snapshot exists     for the specified date, an error message points to the     <a href="https://github.com/labordynamicsinstitute/ssc-mirror/tags">list of available snapshot dates</a>.</p>
 <p class="hang"><code>from(url)</code> specifies the base URL of the snapshot mirror.     If <code>from()</code> is not specified, the URL is taken from the Stata     global <code>SSC2_MIRROR</code> if that is set; otherwise from the     environment variable <code>SSC2_MIRROR</code> if that is set; otherwise the     built-in default     <code>https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror</code>     is used.  The overrides exist because the mirror may move to a     different host; they also let you point at your own clone, which must     use the same layout     (<i>url</i><code>/</code><i>ref</i><code>/fmwww.bc.edu/repec/bocode/</code>).     The analogous <code>SSC2_MIRROR_API</code> global or environment variable     overrides the API endpoint used only for diagnosing failed snapshot     lookups.</p>
 <p><a id="option_ssc2_describe"></a></p>
 <h2>Option for use with ssc2 describe</h2>
@@ -94,6 +94,9 @@
 <p class="hang">You can find out which files are associated with the package by typing     <code>ssc2 describe</code> <i>pkgname</i> before or after installing.  If you     install without using the <code>all</code> option and then want the ancillary     files, you can <code>ssc2 install</code> again.</p>
 <p class="hang"><code>replace</code> specifies that any files being downloaded that already exist     on your computer be replaced by the downloaded files.  If     <code>replace</code> is not specified and any files already exist, none of the     files from the package is downloaded or installed.</p>
 <p class="hang">It is better not to specify the <code>replace</code> option and wait to see if     there is a problem.  If there is a problem, it is usually better to     uninstall the old package by using <code>ssc2 uninstall</code> or     <code>ado uninstall</code> (which are, in fact, the same command).</p>
+<p>When a snapshot is requested with <code>date()</code> or <code>from()</code>, <code>ssc2 install</code> compares the requested snapshot with any installed copy of the same package, using the snapshot date recorded in the installed copy's source; a copy installed from SSC directly carries no snapshot date and cannot be compared.  The behavior is then: without any of the options below, an existing installation is refused, as with official <code>ssc</code>; <code>replace</code> reinstalls the <i>same</i> snapshot only; <code>update</code> moves to a <i>newer</i> snapshot only (an older snapshot is a no-op); <code>replaceall</code> replaces <i>any</i> installed version, downgrades included.  Because repeated dated installs would otherwise accumulate multiple tracker entries (each snapshot is a distinct source URL), all three options remove the superseded copies before installing.</p>
+<p class="hang"><code>update</code> (only with <code>date()</code> or <code>from()</code>) installs the     requested snapshot only if it is newer than every installed copy of     the package.  If the installed copy is the same age or newer,     nothing is done.</p>
+<p class="hang"><code>replaceall</code> (only with <code>date()</code> or <code>from()</code>) replaces any     installed version of the package without comparing versions; this is     the option to use for downgrading, and the only applicable one with     <code>date(latest)</code>.</p>
 <p><a id="option_ssc2_type"></a></p>
 <h2>Option for use with ssc2 type</h2>
 <p class="hang"><code>asis</code> affects how files with the suffixes <code>.smcl</code>     and <code>.sthlp</code> are displayed.  The default is to interpret SMCL     directives the file might contain.  <code>asis</code> specifies that the file be     displayed in raw, uninterpreted form.</p>
@@ -127,7 +130,7 @@
 <p>Type file <code>whitetst.hlp</code> that is stored at ssc2 <code>. ssc2 type whitetst.hlp</code></p>
 <p>Copy file <code>whitetst.ado</code> from ssc2 to your computer <code>. ssc2 copy whitetst.ado</code></p>
 <p class="gennote">Generated automatically from
-<code>sthlp/ssc2.sthlp</code> on 2026-07-22. The in-Stata help file is the
+<code>sthlp/ssc2.sthlp</code> on 2026-07-29. The in-Stata help file is the
 authoritative version.</p>
 </main>
 </body>

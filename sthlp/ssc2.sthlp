@@ -46,6 +46,8 @@ Install a specified package from SSC mirror
 [{cmd:,}
 {opt all}
 {opt replace}
+{opt update}
+{opt replaceall}
 {opt date(datespec)}
 {opt from(url)}]
 
@@ -200,10 +202,10 @@ The above sections are not included in this help file.
     specified date.  {it:datespec} is either a date in {bf:YYYY-MM-DD}
     format (for example, {cmd:date(2022-01-07)}) or {bf:latest}, which uses
     the most recently mirrored state of the archive.  With
-    {cmd:ssc2 install}, a dated install first removes any previously
-    installed copies of the same package, so repeated dated installs
-    supersede one another rather than accumulating multiple entries in
-    the ado directory.  If no snapshot exists
+    {cmd:ssc2 install}, how an already-installed copy of the same package
+    is handled is governed by {opt replace}, {opt update}, and
+    {opt replaceall}; see
+    {help ssc2##options_ssc2_install:Options for use with ssc2 install}.  If no snapshot exists
     for the specified date, an error message points to the
     {browse "https://github.com/labordynamicsinstitute/ssc-mirror/tags":list of available snapshot dates}.
 
@@ -272,6 +274,35 @@ The above sections are not included in this help file.
     there is a problem.  If there is a problem, it is usually better to
     uninstall the old package by using {opt ssc2 uninstall} or
     {opt ado uninstall} (which are, in fact, the same command).
+
+
+{pstd}
+When a snapshot is requested with {opt date()} or {opt from()},
+{cmd:ssc2 install} compares the requested snapshot with any installed
+copy of the same package, using the snapshot date recorded in the
+installed copy's source; a copy installed from SSC directly carries no
+snapshot date and cannot be compared.  The behavior is then:
+without any of the options below, an existing installation is refused,
+as with official {cmd:ssc};
+{opt replace} reinstalls the {it:same} snapshot only;
+{opt update} moves to a {it:newer} snapshot only (an older snapshot is
+a no-op);
+{opt replaceall} replaces {it:any} installed version, downgrades
+included.  Because repeated dated installs would otherwise accumulate
+multiple tracker entries (each snapshot is a distinct source URL),
+all three options remove the superseded copies before installing.
+
+{phang}
+{opt update} (only with {opt date()} or {opt from()}) installs the
+    requested snapshot only if it is newer than every installed copy of
+    the package.  If the installed copy is the same age or newer,
+    nothing is done.
+
+{phang}
+{opt replaceall} (only with {opt date()} or {opt from()}) replaces any
+    installed version of the package without comparing versions; this is
+    the option to use for downgrading, and the only applicable one with
+    {cmd:date(latest)}.
 
 
 {marker option_ssc2_type}{...}
