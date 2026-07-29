@@ -73,6 +73,16 @@ assert_reghdfe_version "5.7.3"
 ssc2 uninstall reghdfe            // exactly one tracked copy throughout
 capture noisily which reghdfe
 assert _rc!=0
+* undated replace over a snapshot-installed copy: retires the dated
+* entry, delegates to ssc, and leaves exactly one tracked copy
+ssc2 install reghdfe, date(2022-01-07)
+ssc2 install reghdfe, replace
+assert_reghdfe_version "version"          // now the current SSC version
+capture noisily assert_reghdfe_version "5.7.3"
+assert _rc!=0
+ssc2 uninstall reghdfe                    // must succeed on the first try
+capture noisily which reghdfe
+assert _rc!=0
 * update/replaceall require a snapshot context
 capture noisily ssc2 install reghdfe, update
 assert _rc==198

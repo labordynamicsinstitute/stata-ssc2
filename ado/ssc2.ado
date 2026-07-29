@@ -1,4 +1,4 @@
-*! version 2.2.0-draft 23jul2026  L. Vilhuber and contributors
+*! version 2.2.1-draft 29jul2026  L. Vilhuber and contributors
 *! Install Stata packages from date-based snapshots of the SSC archive,
 *! mirrored at https://github.com/labordynamicsinstitute/ssc-mirror
 *!
@@ -292,11 +292,39 @@ program define ssc2_install
 	local pkgname `"`s(pkgname)'"'
 	syntax [, ALL REPLACE UPDATE REPLACEALL DATE(string) FROM(string) *]
 
-	* no snapshot requested: delegate fully to official ssc
+	* no snapshot requested: delegate to official ssc
 	if `"`date'`from'"'=="" {
 		if "`update'`replaceall'" != "" {
 			di as err "options {bf:update} and {bf:replaceall} require {bf:date()} or {bf:from()}"
 			exit 198
+		}
+		* Official -replace- means: replace whatever is there, no version
+		* comparison. When the existing copy was installed from a mirror
+		* snapshot, honoring that also requires retiring its tracker
+		* entry (a snapshot is a different source URL, so ssc's install
+		* would otherwise ADD an entry and -ado uninstall pkgname- would
+		* later fail on multiple matches). Copies installed from SSC
+		* itself are left for ssc to manage natively, so a call that
+		* never involved the mirror remains a pure passthrough.
+		if "`replace'" != "" {
+			ScanInstalled `pkgname'
+			local ninst  = r(n)
+			local nums   `"`r(nums)'"'
+			local idates `"`r(dates)'"'
+			local dnums
+			forvalues j = 1/`ninst' {
+				local d : word `j' of `idates'
+				if "`d'" != "." {
+					local k : word `j' of `nums'
+					local dnums `dnums' `k'
+				}
+			}
+			local nd : word count `dnums'
+			if `nd' > 0 {
+				di as txt "(replace: superseding `nd' snapshot-installed cop" ///
+					cond(`nd'==1,"y","ies") " of `pkgname')"
+				RemoveByNums `dnums'
+			}
 		}
 		ssc install `pkgname', `all' `replace' `options'
 		exit

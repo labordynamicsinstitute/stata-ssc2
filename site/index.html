@@ -153,10 +153,10 @@
     <button type="button" id="addrow" class="addbtn">+ add another package</button>
     <label class="check">
       <input type="checkbox" id="replaceopt" checked>
-      <span><b>Replace any installed version</b> (adds <code>replaceall</code>)
-      <span class="hint">dated installs refuse to overwrite a different
-      installed version unless told to; replaceall permits upgrades and
-      downgrades alike</span></span>
+      <span><b>Replace any installed version</b>
+      <span class="hint">adds <code>replaceall</code> to dated installs and
+      <code>replace</code> to undated ones; without it, an existing
+      installation is refused, as official ssc does</span></span>
     </label>
     <label class="check" style="margin-top:.5rem">
       <input type="checkbox" id="bootstrap">
@@ -367,8 +367,11 @@ function render(){
         continue;
       }
       const opts = [];
-      if(frozen) opts.push("date(" + rowDate(row) + ")");
-      if($("replaceopt").checked) opts.push("replaceall");
+      if(frozen){
+        opts.push("date(" + rowDate(row) + ")");
+        if($("replaceopt").checked) opts.push("replaceall");
+      }
+      else if($("replaceopt").checked) opts.push("replace");
       const opt = opts.length ? ', <span class="opt">' + opts.join(" ") + '</span>' : "";
       lines.push('<span class="p">. </span>ssc2 install ' + n + opt);
     }

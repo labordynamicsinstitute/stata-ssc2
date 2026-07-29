@@ -291,6 +291,11 @@ a no-op);
 included.  Because repeated dated installs would otherwise accumulate
 multiple tracker entries (each snapshot is a distinct source URL),
 all three options remove the superseded copies before installing.
+Without {opt date()} or {opt from()}, {cmd:ssc2 install} delegates to
+official {cmd:ssc}; if {opt replace} is specified and a
+snapshot-installed copy of the package exists, that copy is retired
+first (official {opt replace} means replacing whatever is installed,
+and retiring the snapshot entry keeps the package singly tracked).
 
 {phang}
 {opt update} (only with {opt date()} or {opt from()}) installs the
