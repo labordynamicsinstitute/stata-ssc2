@@ -2,7 +2,7 @@
       name:  <unnamed>
        log:  C:\Users\itj5\OneDrive - Cornell University\AEAWorkspace\stata-ssc2\test.log
   log type:  text
- opened on:  29 Jul 2026, 14:35:25
+ opened on:  29 Jul 2026, 15:12:37
 
 . do "C:\Users\itj5\OneDrive - Cornell University\AEAWorkspace\stata-ssc2\test.do"
 
@@ -228,6 +228,44 @@ installation complete.
 
 package reghdfe from https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/202
 > 2-01-07/fmwww.bc.edu/repec/bocode/r
+      'REGHDFE': module to perform linear or instrumental-variable regression absorbing any 
+> number of high-dimensional fixed effects
+
+(package uninstalled)
+
+. capture noisily which reghdfe
+command reghdfe not found as either built-in or ado-file
+
+. assert _rc!=0
+
+. * undated replace over a snapshot-installed copy: retires the dated
+. * entry, delegates to ssc, and leaves exactly one tracked copy
+. ssc2 install reghdfe, date(2022-01-07)
+snapshot selected: 2022-01-07
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2022-01
+> -07/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
+installation complete.
+
+. ssc2 install reghdfe, replace
+(replace: superseding 1 snapshot-installed copy of reghdfe)
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
+installation complete.
+
+. assert_reghdfe_version "version"          // now the current SSC version
+    installed: *! version 6.13.1 10Jan2026
+
+. capture noisily assert_reghdfe_version "5.7.3"
+    installed: *! version 6.13.1 10Jan2026
+assertion is false
+
+. assert _rc!=0
+
+. ssc2 uninstall reghdfe                    // must succeed on the first try
+
+package reghdfe from http://fmwww.bc.edu/repec/bocode/r
       'REGHDFE': module to perform linear or instrumental-variable regression absorbing any 
 > number of high-dimensional fixed effects
 
@@ -928,7 +966,7 @@ System values
 
     ----------------------------------------------------------------------------------------
         c(current_date) = "29 Jul 2026"
-        c(current_time) = "14:35:50"
+        c(current_time) = "15:13:06"
            c(rmsg_time) = 0                          (seconds, from set rmsg)
     ----------------------------------------------------------------------------------------
           c(stata_name) = "StataNow"
@@ -1058,7 +1096,7 @@ Output settings
                 c(rmsg) = "off"                      (set rmsg)
                   c(dp) = "period"                   (set dp)
             c(linesize) = 92                         (set linesize)
-            c(pagesize) = 18                         (set pagesize)
+            c(pagesize) = 13                         (set pagesize)
              c(logtype) = "smcl"                     (set logtype)
               c(logmsg) = "on"                       (set logmsg)
              c(noisily) = 1
@@ -1278,7 +1316,7 @@ Other system values
       set rmsg             off
       set dp               period     may be period or comma
       set linesize         92         characters
-      set pagesize         18         lines
+      set pagesize         13         lines
       --------------------------------------------------------------------------------------
       set iterlog          on
       --------------------------------------------------------------------------------------
@@ -1437,5 +1475,5 @@ end of do-file
       name:  <unnamed>
        log:  C:\Users\itj5\OneDrive - Cornell University\AEAWorkspace\stata-ssc2\test.log
   log type:  text
- closed on:  29 Jul 2026, 14:35:56
+ closed on:  29 Jul 2026, 15:13:17
 --------------------------------------------------------------------------------------------
