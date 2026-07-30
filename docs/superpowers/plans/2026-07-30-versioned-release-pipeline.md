@@ -12,6 +12,7 @@
 
 - **Python standard library only.** No `pip install`, no `requirements.txt`. The repo has no dependency file and CI installs nothing today; keep it that way.
 - **Python 3.12**, matching `actions/setup-python` in the existing `.github/workflows/site.yml`.
+- **Tests are always run from the repository root** as `python3 -m unittest discover -s tests -v`. That puts the root on `sys.path`, so test modules import `tools.*` directly with no `sys.path` manipulation and no `if __name__` block. The two CLI modules (`tools/build_release.py`, `tools/render_docs.py`) do keep a `sys.path.insert`, because `python3 tools/build_release.py` puts `tools/` on the path rather than the root.
 - **Placeholder token syntax is exactly `@UPPER_SNAKE@`** — matched by the regex `@[A-Z][A-Z0-9_]*@`. This deliberately does **not** match the existing `@@DATA-START@@` / `@@DATA-END@@` markers in `site/index.html` (the hyphen is outside the character class). Never widen this regex.
 - **The five tokens are exactly:** `@VERSION@`, `@VERSION_TAG@`, `@DATE_STATA@`, `@DATE_ISO@`, `@DATE_COMPACT@`. No others.
 - **Version strings never carry a leading `v`; tag strings always do.** `Version` objects stringify to `2.2.2`; `tag_of()` produces `v2.2.2`.
@@ -91,13 +92,9 @@ Create `tests/test_version.py`:
 
 ```python
 """Unit tests for tools/version.py."""
-import sys
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from tools.version import (  # noqa: E402
+from tools.version import (
     Version, bump, known_versions, latest_release, next_version, parse, tag_of,
 )
 
@@ -243,9 +240,6 @@ class TestNextVersion(unittest.TestCase):
         with self.assertRaises(ValueError):
             next_version(["v0.5-beta"])
 
-
-if __name__ == "__main__":
-    unittest.main()
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -484,14 +478,11 @@ Create `tests/test_render.py`:
 ```python
 """Unit tests for tools/render.py."""
 import datetime
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from tools.render import (  # noqa: E402
+from tools.render import (
     TOKEN_RE, context, render_file, render_text,
 )
 
@@ -605,9 +596,6 @@ class TestRenderFile(unittest.TestCase):
             self.assertIn("bad.txt", str(cm.exception))
             self.assertIn("@MYSTERY@", str(cm.exception))
 
-
-if __name__ == "__main__":
-    unittest.main()
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -727,13 +715,10 @@ a source file, or a fork URL surviving a merge.
 """
 import datetime
 import re
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from tools.render import TOKEN_RE, context  # noqa: E402
+from tools.render import TOKEN_RE, context
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -813,9 +798,6 @@ class TestDataMarkersIntact(unittest.TestCase):
         self.assertNotIn("@@DATA-START@@",
                          "".join(TOKEN_RE.findall(text)))
 
-
-if __name__ == "__main__":
-    unittest.main()
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -956,17 +938,14 @@ Create `tests/test_build_release.py`:
 import datetime
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from tools.build_release import (  # noqa: E402
+from tools.build_release import (
     COPY_FILES, PACKAGE_FILES, build, main,
 )
-from tools.version import git_tags  # noqa: E402
+from tools.version import git_tags
 
 WHEN = datetime.date(2026, 7, 30)
 
@@ -1108,9 +1087,6 @@ class TestMainCLI(unittest.TestCase):
             self.assertEqual(rc, 1)
             self.assertFalse(out.exists())
 
-
-if __name__ == "__main__":
-    unittest.main()
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1314,14 +1290,11 @@ Create `tests/test_citation.py`:
 ```python
 """Unit tests for tools/citation.py."""
 import datetime
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from tools.citation import CITATION_FILE, main, set_release_fields  # noqa: E402
+from tools.citation import CITATION_FILE, main, set_release_fields
 
 WHEN = datetime.date(2026, 7, 30)
 
@@ -1456,9 +1429,6 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(path.read_text(encoding="utf-8"),
                              "cff-version: 1.2.0\n")
 
-
-if __name__ == "__main__":
-    unittest.main()
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1657,7 +1627,7 @@ before the `subprocess.run(["git", "init", ...])` call:
         encoding="utf-8")
 ```
 
-Then add this class immediately before the `if __name__` block:
+Then append this class at the end of the file:
 
 ```python
 class TestCitationInReleaseTree(unittest.TestCase):
@@ -1689,8 +1659,7 @@ class TestCitationInReleaseTree(unittest.TestCase):
 
 - [ ] **Step 7: Add CITATION.cff to the source guard tests**
 
-In `tests/test_sources.py`, add this class immediately before the
-`if __name__` block:
+In `tests/test_sources.py`, append this class at the end of the file:
 
 ```python
 class TestCitationFile(unittest.TestCase):
@@ -1755,8 +1724,7 @@ git commit -m "feat: keep CITATION.cff in step with the released version"
 
 - [ ] **Step 1: Extend the guard tests**
 
-In `tests/test_sources.py`, add these two classes just before the
-`if __name__` block:
+In `tests/test_sources.py`, append these two classes at the end of the file:
 
 ```python
 DOC_FILES = ["README.md", "site/about.html", "site/index.html"]
