@@ -12,6 +12,10 @@ abstract: >-
 authors:
   - family-names: Vilhuber
     given-names: Lars
+    affiliation: "Labor Dynamics Institute, Cornell University"
+  - family-names: Joyce
+    given-names: Ian
+    affiliation: "University of Notre Dame"
 keywords:
   - stata
   - reproducibility
