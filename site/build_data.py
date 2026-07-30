@@ -4,8 +4,7 @@ build_data.py -- regenerate the embedded data block of index.html
 from the live ssc-mirror repository.
 
 Run manually:      python3 build_data.py [path/to/index.html]
-Run by CI daily:   see rebuild.yml
-
+Run by CI daily:   see .github/workflows/site.yml
 What it rewrites (everything between @@DATA-START@@ and @@DATA-END@@):
   BUILD_STAMP    today's date (UTC)
   LAST_SNAPSHOT  newest date tag on the mirror
