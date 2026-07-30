@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 2.0.0-draft  08jul2026}{...}
+{* *! version @VERSION@  @DATE_STATA@}{...}
 {vieweralsosee "[R] ssc2" "mansection R ssc2"}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] ssc" "help ado update"}{...}
