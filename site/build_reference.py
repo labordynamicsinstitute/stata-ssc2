@@ -107,52 +107,11 @@ def convert(smcl: str) -> str:
     return "\n".join(out)
 
 
-PAGE = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reference — ssc2</title>
-<style>
-  :root{{--navy:#123a63;--ink:#20242a;--muted:#5c6572;--paper:#fafbfc;
-    --line:#d7dde4;--accent:#1b6fae;--navy-soft:#e8eef5}}
-  *{{box-sizing:border-box;margin:0;padding:0}}
-  body{{background:var(--paper);color:var(--ink);
-    font:16px/1.6 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-    padding:2.5rem 1.25rem 4rem}}
-  main{{max-width:700px;margin:0 auto}}
-  .topnav{{background:var(--navy);margin:-2.5rem -1.25rem 2.2rem;padding:0 1.25rem}}
-  .nav-inner{{max-width:700px;margin:0 auto;display:flex;gap:1.4rem;align-items:center}}
-  .topnav a{{color:#c8d8e8;text-decoration:none;font-size:.9rem;padding:.7rem 0}}
-  .topnav a:hover{{color:#fff}}
-  .topnav a.on{{color:#fff;font-weight:600;box-shadow:inset 0 -3px 0 #fff}}
-  .topnav .brand{{font-family:ui-monospace,Consolas,Menlo,monospace;font-weight:700;
-    font-size:1rem;color:#fff}}
-  h1,h2{{font-family:Charter,Georgia,"Times New Roman",serif;color:var(--navy)}}
-  h1{{font-size:1.8rem;margin-bottom:.3rem}}
-  h2{{font-size:1.25rem;margin:1.8rem 0 .6rem;border-bottom:1px solid var(--line);
-    padding-bottom:.25rem}}
-  p{{margin:.55rem 0}}
-  p.hang{{padding-left:1.6rem;text-indent:-1.6rem;margin:.65rem 0}}
-  p.syn{{font-family:ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;
-    font-size:.88rem;background:var(--navy-soft);border-radius:6px;
-    padding:.55rem .8rem;margin:.4rem 0}}
-  p.manhead{{color:var(--muted);font-size:.9rem}}
-  code{{font-family:ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;
-    font-size:.9em;color:var(--navy)}}
-  a{{color:var(--accent)}}
-  .gennote{{margin-top:2.5rem;font-size:.8rem;color:var(--muted);
-    border-top:1px solid var(--line);padding-top:.8rem}}
-</style>
-</head>
-<body>
-<nav class="topnav"><div class="nav-inner">
-  <a class="brand" href="index.html">ssc2</a>
-  <a href="about.html">About</a>
-  <a class="on" href="reference.html">Reference</a>
-  <a href="articles.html">Articles</a>
-</div></nav>
-<main>
+PAGE = """---
+layout: default
+title: Reference
+nav_order: 3
+---
 <h1>Reference</h1>
 <p class="manhead">{desc}. Web rendering of the Stata help file
 (<code>help ssc2</code>).</p>
@@ -160,9 +119,6 @@ PAGE = """<!DOCTYPE html>
 <p class="gennote">Generated automatically from
 <code>sthlp/ssc2.sthlp</code> on {stamp}. The in-Stata help file is the
 authoritative version.</p>
-</main>
-</body>
-</html>
 """
 
 

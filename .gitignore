@@ -1,0 +1,8 @@
+# Jekyll build output and cache
+site/_site/
+site/.jekyll-cache/
+site/.jekyll-metadata
+
+# Bundler
+site/vendor/
+site/.bundle/

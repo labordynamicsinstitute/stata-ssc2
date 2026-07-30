@@ -1,11 +1,11 @@
 # Build and deploy the ssc2 website (site/ directory) via Action-based
-# GitHub Pages deployment.
+# GitHub Pages deployment using Jekyll (just-the-docs theme).
 #
 #   build:  runs on every PR and every push to main, and weekly by cron.
 #           Refreshes the embedded snapshot/package data and regenerates
-#           the Reference page from the Stata help file, then uploads the
-#           site as the Pages artifact. On PRs this artifact can be
-#           downloaded from the run page to inspect the HTML without
+#           the Reference page from the Stata help file, then builds the
+#           Jekyll site and uploads the artifact. On PRs this artifact can
+#           be downloaded from the run page to inspect the output without
 #           deploying anything.
 #   deploy: runs only for main (pushes and the weekly cron), never PRs.
 #
@@ -46,10 +46,18 @@ jobs:
         run: python3 site/build_data.py site/index.html
       - name: Regenerate Reference page from the Stata help file
         run: python3 site/build_reference.py sthlp/ssc2.sthlp site/reference.html
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: site
+      - name: Build Jekyll site
+        run: bundle exec jekyll build
+        working-directory: site
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: site/_site
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

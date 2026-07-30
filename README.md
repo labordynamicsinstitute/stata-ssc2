@@ -1,7 +1,5 @@
 # ssc2
 
-## Overview
-
 Install Stata packages from **date-based snapshots** of the SSC archive,
 mirrored at <https://github.com/labordynamicsinstitute/ssc-mirror>.
 Backward compatible with `ssc`.
@@ -88,6 +86,13 @@ Run [`test.do`](test.do) in Stata. It exercises dated installs,
 delegation to `ssc`, `date(latest)`, `copy`/`type` with dates, and error
 handling.
 
+## Website
+
+The project website is at <https://labordynamicsinstitute.github.io/stata-ssc2/>,
+built with Jekyll using the
+[just-the-docs](https://just-the-docs.com/) theme.
+
 ## Current Author(s)
 
 - Lars Vilhuber
+- Ian Joyce and contributors

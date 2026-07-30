@@ -1,144 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SSC snapshot picker — ssc2</title>
-<style>
-  :root{
-    --navy:#123a63;        /* Stata-GUI navy */
-    --navy-soft:#e8eef5;
-    --ink:#20242a;
-    --muted:#5c6572;
-    --paper:#fafbfc;
-    --line:#d7dde4;
-    --console-bg:#171b21;  /* Stata dark results window */
-    --console-ink:#e6e9ec;
-    --console-dim:#8a949f;
-    --console-good:#7fd08c;/* Stata result green */
-    --console-err:#e07a7a; /* Stata error red */
-    --accent:#1b6fae;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{
-    background:var(--paper);color:var(--ink);
-    font:16px/1.55 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-    padding:2.5rem 1.25rem 4rem;
-  }
-  main{max-width:700px;margin:0 auto}
-  h1{
-    font-family:Charter,Georgia,"Times New Roman",serif;
-    font-size:2rem;font-weight:700;letter-spacing:-.01em;color:var(--navy);
-  }
-  .kicker{
-    font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
-    color:var(--muted);margin-bottom:.4rem;
-  }
-  .lede{color:var(--muted);margin:.6rem 0 2rem;max-width:56ch}
-  .lede code{font-family:ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;font-size:.9em;color:var(--navy)}
-
-  fieldset{border:1px solid var(--line);border-radius:8px;background:#fff;
-    padding:1.25rem 1.25rem 1.4rem;margin-bottom:1.1rem}
-  legend{font-family:Charter,Georgia,serif;font-weight:700;color:var(--navy);
-    padding:0 .5rem;font-size:1.05rem}
-  label{display:block;font-size:.85rem;font-weight:600;margin-bottom:.35rem}
-  .hint{font-size:.8rem;color:var(--muted);font-weight:400}
-  input[type=text]{
-    width:100%;padding:.55rem .7rem;border:1px solid var(--line);border-radius:6px;
-    font:inherit;font-family:ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;font-size:.95rem;
-  }
-  input[type=text]:focus,input[type=date]:focus,input[type=range]:focus-visible,
-  button:focus-visible,input[type=checkbox]:focus-visible{
-    outline:2px solid var(--accent);outline-offset:2px}
-  .row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
-  .check{display:flex;gap:.55rem;align-items:flex-start;font-weight:400;font-size:.9rem;cursor:pointer}
-  .check input{margin-top:.22rem;accent-color:var(--navy)}
-  .check b{font-weight:600}
-
-  /* autocomplete */
-  .acwrap{position:relative}
-  #ac{position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:6;display:none;
-    background:#fff;border:1px solid var(--line);border-radius:6px;
-    box-shadow:0 8px 20px rgba(18,58,99,.14);max-height:15rem;overflow-y:auto}
-  .ac-item{padding:.4rem .75rem;cursor:pointer;
-    font:.9rem ui-monospace,"Cascadia Code",Consolas,Menlo,monospace}
-  .ac-item.sel,.ac-item:hover{background:var(--navy-soft);color:var(--navy)}
-
-  /* timeline */
-  .timeline{margin-top:.9rem}
-  input[type=range]{width:100%;accent-color:var(--navy);cursor:pointer}
-  .tl-labels{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);
-    font-family:ui-monospace,Consolas,Menlo,monospace;margin-top:.15rem}
-  .tl-readout{
-    display:flex;gap:.9rem;align-items:baseline;margin-top:.6rem;flex-wrap:wrap}
-  .tl-date{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:1.25rem;
-    font-weight:700;color:var(--navy)}
-  .snapnote{font-size:.8rem;color:#8a6d1f;background:#fbf3da;border-radius:4px;
-    padding:.1rem .45rem;display:none}
-  .snapnote.show{display:inline-block}
-  input[type=date]{padding:.35rem .5rem;border:1px solid var(--line);border-radius:6px;
-    font:inherit;font-size:.85rem}
-  .disabledzone{opacity:.45}
-  input:disabled{cursor:not-allowed}
-  .check input:disabled + span{opacity:.5}
-
-  /* the signature: Stata results window */
-  .results{
-    background:var(--console-bg);border-radius:8px;overflow:hidden;
-    box-shadow:0 6px 24px rgba(18,58,99,.18)}
-  .results-bar{
-    display:flex;align-items:center;justify-content:space-between;
-    background:var(--navy);color:#dce7f2;font-size:.75rem;
-    letter-spacing:.08em;text-transform:uppercase;padding:.45rem .9rem}
-  .results-bar button{
-    font:inherit;letter-spacing:.08em;text-transform:uppercase;
-    background:transparent;border:1px solid rgba(255,255,255,.45);color:#fff;
-    border-radius:4px;padding:.2rem .7rem;cursor:pointer}
-  .results-bar button:hover{background:rgba(255,255,255,.12)}
-  pre{
-    padding:1rem 1.1rem 1.15rem;color:var(--console-ink);
-    font:0.88rem/1.65 ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;
-    white-space:pre-wrap;word-break:break-all}
-  pre .p{color:var(--console-dim)}          /* the ". " prompt */
-  pre .cm{color:var(--console-dim);font-style:italic}
-  pre .opt{color:var(--console-good)}
-  pre .err{color:var(--console-err)}
-  .cursor{display:inline-block;width:.55em;height:1.05em;background:var(--console-ink);
-    vertical-align:-0.15em;animation:blink 1.1s steps(1) infinite}
-  @keyframes blink{50%{opacity:0}}
-  @media (prefers-reduced-motion:reduce){.cursor{animation:none}}
-
-  .topnav{background:var(--navy);margin:-2.5rem -1.25rem 2.2rem;padding:0 1.25rem}
-  .nav-inner{max-width:700px;margin:0 auto;display:flex;gap:1.4rem;align-items:center}
-  .topnav a{color:#c8d8e8;text-decoration:none;font-size:.9rem;padding:.7rem 0}
-  .topnav a:hover{color:#fff}
-  .topnav a.on{color:#fff;font-weight:600;box-shadow:inset 0 -3px 0 #fff}
-  .topnav .brand{font-family:ui-monospace,Consolas,Menlo,monospace;font-weight:700;
-    font-size:1rem;color:#fff}
-  select{padding:.5rem .6rem;border:1px solid var(--line);border-radius:6px;
-    font:inherit;font-size:.9rem;background:#fff;max-width:100%}
-  .pkgrow{display:flex;gap:.5rem;margin-bottom:.55rem;align-items:center}
-  .pkgrow .acwrap{flex:1}
-  .delbtn,.addbtn{font:inherit;border:1px solid var(--line);background:#fff;
-    border-radius:6px;cursor:pointer;color:var(--navy)}
-  .delbtn{width:2.2rem;height:2.2rem;font-size:1.1rem;line-height:1}
-  .delbtn:disabled{opacity:.35;cursor:not-allowed}
-  .addbtn{padding:.4rem .8rem;font-size:.85rem;margin:.2rem 0 .9rem}
-  .delbtn:hover:not(:disabled),.addbtn:hover{background:var(--navy-soft)}
-  .snapbox{margin-bottom:1.1rem}
-  footer a{color:var(--accent)}
-  footer{margin-top:2.2rem;font-size:.8rem;color:var(--muted);line-height:1.7}
-  footer code{font-family:ui-monospace,Consolas,Menlo,monospace;color:var(--navy)}
-</style>
-</head>
-<body>
-<nav class="topnav"><div class="nav-inner">
-  <a class="brand on" href="index.html">ssc2</a>
-  <a href="about.html">About</a>
-  <a href="reference.html">Reference</a>
-  <a href="articles.html">Articles</a>
-</div></nav>
-<main>
+---
+layout: default
+title: Home
+nav_order: 1
+description: "Install Stata packages from date-based snapshots of the SSC archive"
+---
   <div class="kicker">ssc2 · SSC archive time machine</div>
   <h1>Install Stata packages from a point in time</h1>
   <p class="lede">Pick a date for each package and this page writes the
@@ -187,8 +52,7 @@
     <pre id="out"></pre>
   </div>
 
-  <footer id="stats"></footer>
-</main>
+  <div id="stats"></div>
 
 <script>
 /* @@DATA-START@@ -- regenerated by build_data.py; do not edit by hand */
@@ -485,5 +349,3 @@ addRow("reghdfe");
 renderStats();
 refreshSnapshots();
 </script>
-</body>
-</html>
