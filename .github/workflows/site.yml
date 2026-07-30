@@ -1,18 +1,20 @@
 # Build and deploy the ssc2 website (site/ directory) via Action-based
 # GitHub Pages deployment.
 #
-#   build:  runs on every PR and every push to main, and weekly by cron.
-#           Refreshes the embedded snapshot/package data and regenerates
-#           the Reference page from the Stata help file, then uploads the
-#           site as the Pages artifact. On PRs this artifact can be
-#           downloaded from the run page to inspect the HTML without
-#           deploying anything.
-#   deploy: runs only for main (pushes and the weekly cron), never PRs.
+#   build:  runs on every PR and every push to main, weekly by cron, and
+#           whenever release.yml calls this workflow. Refreshes the
+#           embedded snapshot/package data, regenerates the Reference
+#           page from the Stata help file, renders version placeholders
+#           to the newest stable release tag, then uploads the site as
+#           the Pages artifact. On PRs this artifact can be downloaded
+#           from the run page to inspect the HTML without deploying.
+#   deploy: runs only for main (pushes, cron, and release calls), never PRs.
 #
 # The weekly rebuild keeps embedded data at most 7 days stale; the page's
 # own single async API call tops up newer snapshot dates per visit.
-# Data regeneration happens in CI at build time and lands in the deployed
-# artifact only -- nothing is committed back to the repository.
+# Data regeneration and placeholder rendering happen in CI at build time
+# and land in the deployed artifact only -- nothing is committed back to
+# the repository, so main keeps its @TOKEN@ placeholders.
 #
 # Requires: repository Settings -> Pages -> Source = "GitHub Actions".
 
@@ -24,6 +26,9 @@ on:
   schedule:
     - cron: "30 6 * * 1"      # Mondays 06:30 UTC (after the mirror's daily run)
   workflow_dispatch: {}
+  # Called by release.yml so a new release republishes the site with its
+  # install instructions pointing at the version just published.
+  workflow_call: {}
 
 permissions:
   contents: read
@@ -39,6 +44,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # tools/render_docs.py resolves the newest stable release tag,
+          # which the default shallow checkout does not fetch.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -46,6 +55,9 @@ jobs:
         run: python3 site/build_data.py site/index.html
       - name: Regenerate Reference page from the Stata help file
         run: python3 site/build_reference.py sthlp/ssc2.sthlp site/reference.html
+      - name: Render version placeholders in the site
+        # Edits the CI working copy in place; nothing is committed back.
+        run: python3 tools/render_docs.py site/about.html site/index.html
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
