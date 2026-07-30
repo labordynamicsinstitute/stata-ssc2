@@ -100,6 +100,13 @@ Run [`test.do`](test.do) in Stata. It exercises dated installs,
 delegation to `ssc`, `date(latest)`, `copy`/`type` with dates, and error
 handling.
 
+## Releasing
+
+Releases are cut by the **release** GitHub Actions workflow, which
+renders the version placeholders, publishes the installable tree on the
+`dist` branch, tags it, and redeploys the website. See
+[`docs/RELEASING.md`](docs/RELEASING.md).
+
 ## Current Author(s)
 
 - Lars Vilhuber
