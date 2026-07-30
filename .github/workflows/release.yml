@@ -1,0 +1,220 @@
+# Cut a release of the ssc2 package. Manual trigger only.
+#
+# What a run does, in order:
+#   1. runs the unit tests, so a broken tree cannot be released;
+#   2. resolves the version -- the explicit `version` input if given,
+#      otherwise the newest stable tag incremented by `bump`, with an
+#      -rc.N suffix when `prerelease` is ticked;
+#   3. renders the @TOKEN@ placeholders into a release tree;
+#   4. publishes that tree as a commit on the orphan `dist` branch and
+#      tags it. `main` is never modified;
+#   5. for stable releases only, force-moves the floating `latest` tag;
+#   6. creates the GitHub release -- which is also what Zenodo watches,
+#      and Zenodo archives the tag's tarball, so the DOI metadata comes
+#      from the rendered CITATION.cff on dist;
+#   7. for stable releases only, opens a pull request against main
+#      updating CITATION.cff's two release fields. It is never pushed
+#      straight to main -- a human merges it;
+#   8. calls site.yml so the website advertises the new version.
+#
+# The very first run must pass version = 2.2.2 explicitly: the newest
+# released tag is v1.1.7 while the source claimed 2.2.1-draft, and the
+# decision was to adopt the source version. Later runs need no input.
+#
+# Users install from the tags this creates:
+#   net install ssc2, all replace ///
+#     from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/latest/")
+
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Explicit version, no leading v (e.g. 2.2.2 or 2.3.0-rc.1). Blank = auto-increment."
+        required: false
+        type: string
+      bump:
+        description: "Which part to increment when version is blank"
+        required: false
+        default: patch
+        type: choice
+        options: [patch, minor, major]
+      prerelease:
+        description: "Mark as a pre-release (adds/advances -rc.N; the latest tag is NOT moved)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write        # push the dist branch and tags, create the release
+  pull-requests: write   # open the CITATION.cff sync PR against main
+  pages: write           # the site job this workflow calls
+  id-token: write        # ditto
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.build.outputs.version }}
+      tag: ${{ steps.build.outputs.tag }}
+      prerelease: ${{ steps.build.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0      # version resolution reads every tag
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run the unit tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Build the release tree
+        id: build
+        env:
+          IN_VERSION: ${{ inputs.version }}
+          IN_BUMP: ${{ inputs.bump }}
+          IN_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          args=(--out "$RUNNER_TEMP/dist" --bump "$IN_BUMP")
+          if [ "$IN_PRERELEASE" = "true" ]; then
+            args+=(--prerelease)
+          fi
+          if [ -n "$IN_VERSION" ]; then
+            args+=(--version "$IN_VERSION")
+          fi
+          python3 tools/build_release.py "${args[@]}"
+
+      - name: Publish the release tree on the dist branch
+        env:
+          TAG: ${{ steps.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # A runner has no git identity of its own; this is the standard
+          # bot identity and applies to CI only.
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin dist >/dev/null 2>&1; then
+            git fetch origin dist:dist
+            git worktree add "$RUNNER_TEMP/wt" dist
+          else
+            # First release: start dist with no history from main.
+            git worktree add --detach "$RUNNER_TEMP/wt"
+            git -C "$RUNNER_TEMP/wt" checkout --orphan dist
+            git -C "$RUNNER_TEMP/wt" rm -rf --quiet . || true
+          fi
+
+          # Replace the tree wholesale so a file dropped from a release
+          # really disappears.
+          find "$RUNNER_TEMP/wt" -mindepth 1 -maxdepth 1 \
+               ! -name .git -exec rm -rf {} +
+          cp -a "$RUNNER_TEMP/dist/." "$RUNNER_TEMP/wt/"
+
+          git -C "$RUNNER_TEMP/wt" add -A
+          git -C "$RUNNER_TEMP/wt" commit -m "release $TAG"
+          git -C "$RUNNER_TEMP/wt" tag -a "$TAG" -m "ssc2 $TAG"
+          git -C "$RUNNER_TEMP/wt" push origin dist
+          git -C "$RUNNER_TEMP/wt" push origin "$TAG"
+
+      - name: Move the latest tag
+        if: ${{ steps.build.outputs.prerelease == 'false' }}
+        env:
+          TAG: ${{ steps.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git -C "$RUNNER_TEMP/wt" tag -f latest "$TAG"
+          git -C "$RUNNER_TEMP/wt" push -f origin latest
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.build.outputs.tag }}
+          IS_PRE: ${{ steps.build.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if [ "$IS_PRE" = "true" ]; then
+            flag=--prerelease
+          else
+            flag=--latest
+          fi
+          gh release create "$TAG" \
+            --title "ssc2 $TAG" \
+            --generate-notes \
+            "$flag"
+
+      - name: Open a pull request syncing CITATION.cff on main
+        # Stable releases only: an -rc.N candidate should not change the
+        # citation metadata people see on the repository page.
+        #
+        # This is a branch cut from main touching exactly one file, NOT a
+        # merge from dist. dist is an orphan branch whose tree is only
+        # the installable files; merging it into main would delete site/,
+        # tools/, tests/ and .github/.
+        if: ${{ steps.build.outputs.prerelease == 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.build.outputs.version }}
+          TAG: ${{ steps.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # The checkout for this job is main; branch from a clean copy
+          # of it so nothing the build wrote can leak into the PR.
+          git checkout -B "citation/$TAG" origin/main
+
+          python3 tools/citation.py --version "$VERSION" --in-place CITATION.cff
+
+          if git diff --quiet -- CITATION.cff; then
+            echo "CITATION.cff already matches $TAG; no pull request needed."
+            exit 0
+          fi
+
+          # Build the body in a file: a multi-line --body argument would
+          # otherwise carry this block's YAML indentation into the PR.
+          {
+            printf 'Updates `CITATION.cff` to the values published in %s/%s/releases/tag/%s.\n\n' \
+              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$TAG"
+            printf 'Opened automatically by the release workflow. Merging is manual and optional: the released tag on `dist` already carries the correct metadata, so Zenodo archiving is unaffected either way. This PR only keeps the "Cite this repository" widget on `main` current.\n\n'
+            printf 'Two lines change: `version` and `date-released`.\n'
+          } > "$RUNNER_TEMP/pr-body.md"
+
+          git add CITATION.cff
+          git commit -m "chore: citation metadata for $TAG"
+          git push -u origin "citation/$TAG"
+          gh pr create \
+            --base main \
+            --head "citation/$TAG" \
+            --title "chore: citation metadata for $TAG" \
+            --body-file "$RUNNER_TEMP/pr-body.md"
+
+      - name: Summarise
+        env:
+          TAG: ${{ steps.build.outputs.tag }}
+          IS_PRE: ${{ steps.build.outputs.prerelease }}
+        run: |
+          {
+            echo "## Released \`$TAG\`"
+            echo
+            echo "Pre-release: \`$IS_PRE\`"
+            echo
+            echo '```stata'
+            echo "net install ssc2, all replace from(\"https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${TAG}/\")"
+            echo '```'
+            if [ "$IS_PRE" = "false" ]; then
+              echo
+              echo 'The `latest` tag now points here.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  site:
+    needs: release
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/site.yml
