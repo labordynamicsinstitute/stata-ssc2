@@ -2151,10 +2151,12 @@ Create `.github/workflows/release.yml`:
 #   3. renders the @TOKEN@ placeholders into a release tree;
 #   4. publishes that tree as a commit on the orphan `dist` branch and
 #      tags it. `main` is never modified;
-#   5. for stable releases only, force-moves the floating `latest` tag;
-#   6. creates the GitHub release -- which is also what Zenodo watches,
+#   5. creates the GitHub release -- which is also what Zenodo watches,
 #      and Zenodo archives the tag's tarball, so the DOI metadata comes
 #      from the rendered CITATION.cff on dist;
+#   6. for stable releases only, force-moves the floating `latest` tag.
+#      This happens after the release exists, so a failed release cannot
+#      leave `latest` pointing at a version with nothing behind it;
 #   7. for stable releases only, opens a pull request against main
 #      updating CITATION.cff's two release fields. It is never pushed
 #      straight to main -- a human merges it;
@@ -2243,6 +2245,17 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # Fail early and legibly on an accidental rerun, before anything
+          # is pushed. Without this, a rerun renders a byte-identical tree
+          # and dies on an opaque "nothing to commit" from git instead.
+          if git ls-remote --exit-code origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "error: tag $TAG is already published." >&2
+            echo "  To finish a run that failed after the tag was pushed, create the" >&2
+            echo "  release manually:  gh release create $TAG --generate-notes" >&2
+            echo "  To re-cut this version, delete the release and its tag first." >&2
+            exit 1
+          fi
+
           if git ls-remote --exit-code --heads origin dist >/dev/null 2>&1; then
             git fetch origin dist:dist
             git worktree add "$RUNNER_TEMP/wt" dist
@@ -2260,19 +2273,16 @@ jobs:
           cp -a "$RUNNER_TEMP/dist/." "$RUNNER_TEMP/wt/"
 
           git -C "$RUNNER_TEMP/wt" add -A
-          git -C "$RUNNER_TEMP/wt" commit -m "release $TAG"
+          # --allow-empty covers re-cutting a version whose tag was
+          # deleted (see the runbook): the tag is gone so the guard above
+          # passes, but the previous release commit is still on dist, so
+          # the freshly rendered tree is byte-identical and a plain
+          # commit would fail with "nothing to commit".
+          git -C "$RUNNER_TEMP/wt" commit --allow-empty -m "release $TAG"
           git -C "$RUNNER_TEMP/wt" tag -a "$TAG" -m "ssc2 $TAG"
-          git -C "$RUNNER_TEMP/wt" push origin dist
-          git -C "$RUNNER_TEMP/wt" push origin "$TAG"
-
-      - name: Move the latest tag
-        if: ${{ steps.build.outputs.prerelease == 'false' }}
-        env:
-          TAG: ${{ steps.build.outputs.tag }}
-        run: |
-          set -euo pipefail
-          git -C "$RUNNER_TEMP/wt" tag -f latest "$TAG"
-          git -C "$RUNNER_TEMP/wt" push -f origin latest
+          # One atomic push: a branch that lands without its tag would
+          # leave an untagged release commit on dist and wedge the rerun.
+          git -C "$RUNNER_TEMP/wt" push --atomic origin dist "refs/tags/$TAG"
 
       - name: Create the GitHub release
         env:
@@ -2290,6 +2300,21 @@ jobs:
             --title "ssc2 $TAG" \
             --generate-notes \
             "$flag"
+
+      - name: Move the latest tag
+        # Runs AFTER the release exists. If gh release create fails, we do
+        # not want `latest` already advertising a version with no release
+        # (and so no Zenodo archive) behind it.
+        if: ${{ steps.build.outputs.prerelease == 'false' }}
+        env:
+          TAG: ${{ steps.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # "$TAG^{}" peels the annotated tag object down to its commit.
+          # Without the peel git creates a nested tag-of-a-tag, and the
+          # entire documented install path rests on this ref.
+          git -C "$RUNNER_TEMP/wt" tag -f latest "$TAG^{}"
+          git -C "$RUNNER_TEMP/wt" push -f origin "refs/tags/latest:refs/tags/latest"
 
       - name: Open a pull request syncing CITATION.cff on main
         # Stable releases only: an -rc.N candidate should not change the
@@ -2328,7 +2353,11 @@ jobs:
 
           git add CITATION.cff
           git commit -m "chore: citation metadata for $TAG"
-          git push -u origin "citation/$TAG"
+          # Plain --force, not --force-with-lease: a fresh runner has no
+          # remote-tracking ref for this branch, so the lease has no
+          # baseline and git rejects the push as "stale info". The branch
+          # is workflow-owned and disposable, so --force is appropriate.
+          git push --force -u origin "citation/$TAG"
           gh pr create \
             --base main \
             --head "citation/$TAG" \
@@ -2389,6 +2418,8 @@ assert pr in names, names
 # The PR must come after the release exists, and both it and the latest
 # tag must be gated on this NOT being a pre-release.
 assert names.index('Create the GitHub release') < names.index(pr)
+# latest must move only after the release it points at actually exists.
+assert names.index('Create the GitHub release') < names.index('Move the latest tag')
 for n in ('Move the latest tag', pr):
     step = rel['steps'][names.index(n)]
     assert \"prerelease == 'false'\" in step['if'], (n, step.get('if'))
