@@ -1,0 +1,6 @@
+v 3
+d ssc2: Install Stata packages from date-based snapshots of the SSC archive
+d Labor Dynamics Institute
+d Version 2.2.2 (2026-07-30)
+d https://github.com/labordynamicsinstitute/stata-ssc2
+p ssc2 Install Stata packages from date-based snapshots of the SSC archive
