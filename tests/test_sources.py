@@ -106,3 +106,54 @@ class TestCitationFile(unittest.TestCase):
 
     def test_has_a_top_level_version_field(self):
         self.assertRegex(read("CITATION.cff"), r"(?m)^version: \S+$")
+
+
+DOC_FILES = ["README.md", "site/about.html", "site/index.html"]
+
+
+class TestDocsUsePlaceholders(unittest.TestCase):
+    def test_readme_pins_via_placeholder(self):
+        self.assertIn("@VERSION_TAG@", read("README.md"))
+
+    def test_about_page_pins_via_placeholder(self):
+        self.assertIn("@VERSION_TAG@", read("site/about.html"))
+
+    def test_index_page_pins_via_placeholder(self):
+        self.assertIn("@VERSION_TAG@", read("site/index.html"))
+
+    def test_docs_only_use_defined_tokens(self):
+        for rel in DOC_FILES:
+            with self.subTest(file=rel):
+                used = set(TOKEN_RE.findall(read(rel)))
+                self.assertLessEqual(used, KNOWN_TOKENS,
+                                     f"{rel} uses undefined placeholders")
+
+    def test_docs_quote_no_stale_ssc2_version(self):
+        # README.md carried "v1.0.0" and site/index.html carried "v1.1.7"
+        # in hand-written install instructions. Both go stale silently,
+        # which is the whole reason for the placeholder scheme.
+        for rel in DOC_FILES:
+            with self.subTest(file=rel):
+                found = {m for m in VERSION_LITERAL.findall(read(rel))
+                         if m.lstrip("v") not in ALLOWED_LITERALS}
+                self.assertEqual(found, set(),
+                                 f"{rel} hardcodes an ssc2 version")
+
+
+class TestNoForkReferences(unittest.TestCase):
+    def test_no_fork_owner_anywhere(self):
+        for rel in PLACEHOLDER_FILES + DOC_FILES:
+            with self.subTest(file=rel):
+                self.assertNotIn("ian-joyce", read(rel))
+
+    def test_no_merge_todos_left(self):
+        for rel in PLACEHOLDER_FILES + DOC_FILES:
+            with self.subTest(file=rel):
+                self.assertNotIn("TODO AT MERGE", read(rel))
+
+    def test_nothing_installs_from_main(self):
+        # main carries unrendered placeholders; installing from it would
+        # give the user an ado file whose version reads "@VERSION@".
+        for rel in DOC_FILES:
+            with self.subTest(file=rel):
+                self.assertNotIn("stata-ssc2/main", read(rel))

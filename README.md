@@ -48,15 +48,27 @@ snapshot lookup fails.
 
 ## Installation
 
-```stata
-* ssc2 may be installed directly from GitHub
-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/main")
-```
+Released versions live on the `dist` branch and are tagged. The `latest`
+tag always points at the newest stable release, never at a pre-release.
 
 ```stata
-* or a specific release, e.g. v1.0.0
-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/v1.0.0/")
+* the current stable release
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/latest/")
 ```
+
+To pin an exact version — which is what you want in a replication
+package — use the release tag instead of `latest`:
+
+```stata
+* a specific release
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/@VERSION_TAG@/")
+```
+
+> On the `main` branch `@VERSION_TAG@` above is a build placeholder. Each
+> published release renders it to that release's own tag; see
+> [Releases](https://github.com/labordynamicsinstitute/stata-ssc2/releases)
+> for every tag you can substitute. Do **not** install from `main` — its
+> version strings are unrendered placeholders.
 
 ## Example
 
