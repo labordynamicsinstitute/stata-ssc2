@@ -88,3 +88,21 @@ class TestDataMarkersIntact(unittest.TestCase):
         text = read("site/index.html")
         self.assertNotIn("@@DATA-START@@",
                          "".join(TOKEN_RE.findall(text)))
+
+
+class TestCitationFile(unittest.TestCase):
+    """CITATION.cff is the one file that must NOT carry placeholders."""
+
+    def test_uses_no_placeholder_tokens(self):
+        self.assertEqual(TOKEN_RE.findall(read("CITATION.cff")), [])
+
+    def test_date_released_is_a_real_iso_date(self):
+        # The CFF 1.2.0 schema requires YYYY-MM-DD here; GitHub refuses
+        # to render the citation widget if this is malformed.
+        m = re.search(r"^date-released: (\S+)$", read("CITATION.cff"),
+                      re.MULTILINE)
+        self.assertIsNotNone(m, "no top-level date-released field")
+        datetime.date.fromisoformat(m.group(1))
+
+    def test_has_a_top_level_version_field(self):
+        self.assertRegex(read("CITATION.cff"), r"(?m)^version: \S+$")

@@ -39,6 +39,9 @@ def make_repo(tmp: Path) -> Path:
         "install from @VERSION_TAG@\n", encoding="utf-8")
     (repo / "LICENSE").write_text("MIT-ish @VERSION@ not rendered\n",
                                   encoding="utf-8")
+    (repo / "CITATION.cff").write_text(
+        "cff-version: 1.2.0\nversion: 0.0.0\ndate-released: 2000-01-01\n",
+        encoding="utf-8")
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     return repo
 
@@ -150,3 +153,30 @@ class TestMainCLI(unittest.TestCase):
                        "--version", "not-a-version", "--date", "2026-07-30"])
             self.assertEqual(rc, 1)
             self.assertFalse(out.exists())
+
+
+class TestCitationInReleaseTree(unittest.TestCase):
+    def test_citation_file_is_written(self):
+        with tempfile.TemporaryDirectory() as t:
+            repo = make_repo(Path(t))
+            out = Path(t) / "dist"
+            build(repo, out, "2.2.2", WHEN)
+            self.assertTrue((out / "CITATION.cff").exists())
+
+    def test_citation_fields_are_substituted(self):
+        with tempfile.TemporaryDirectory() as t:
+            repo = make_repo(Path(t))
+            out = Path(t) / "dist"
+            build(repo, out, "2.2.2", WHEN)
+            text = (out / "CITATION.cff").read_text(encoding="utf-8")
+            self.assertIn("\nversion: 2.2.2\n", text)
+            self.assertIn("\ndate-released: 2026-07-30\n", text)
+
+    def test_citation_keeps_no_placeholder_tokens(self):
+        with tempfile.TemporaryDirectory() as t:
+            repo = make_repo(Path(t))
+            out = Path(t) / "dist"
+            build(repo, out, "2.2.2-rc.1", WHEN)
+            text = (out / "CITATION.cff").read_text(encoding="utf-8")
+            self.assertNotIn("@", text)
+            self.assertIn('version: "2.2.2-rc.1"', text)

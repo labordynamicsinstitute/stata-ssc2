@@ -3,7 +3,9 @@
 
 Resolves the next version from the repository's git tags, then renders
 the package files -- the ones Stata's -net install- needs -- into an
-output directory with every @TOKEN@ placeholder substituted.
+output directory with every @TOKEN@ placeholder substituted. CITATION.cff
+is handled separately, by field substitution rather than rendering,
+because it must stay schema-valid on main; see tools/citation.py.
 
 Usage:
     python3 tools/build_release.py --out dist
@@ -25,6 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from tools.citation import CITATION_FILE, set_release_fields  # noqa: E402
 from tools.render import context, render_file          # noqa: E402
 from tools.version import git_tags, next_version, tag_of  # noqa: E402
 
@@ -59,6 +62,11 @@ def build(repo: Path, out: Path, version: str, when: datetime.date) -> None:
         dst = out / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(repo / rel, dst)
+    # CITATION.cff carries real values rather than placeholders, so it
+    # is field-substituted instead of rendered. See tools/citation.py.
+    src = (repo / CITATION_FILE).read_text(encoding="utf-8")
+    (out / CITATION_FILE).write_text(
+        set_release_fields(src, version, when), encoding="utf-8")
 
 
 def _emit_outputs(version: str, tag: str, prerelease: bool) -> None:
