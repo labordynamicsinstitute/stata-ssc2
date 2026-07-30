@@ -48,15 +48,27 @@ snapshot lookup fails.
 
 ## Installation
 
-```stata
-* ssc2 may be installed directly from GitHub
-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/main")
-```
+Released versions live on the `dist` branch and are tagged. The `latest`
+tag always points at the newest stable release, never at a pre-release.
 
 ```stata
-* or a specific release, e.g. v1.0.0
-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/v1.0.0/")
+* the current stable release
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/latest/")
 ```
+
+To pin an exact version — which is what you want in a replication
+package — use the release tag instead of `latest`:
+
+```stata
+* a specific release
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/@VERSION_TAG@/")
+```
+
+> The tag above is substituted at release time. On the `main` branch you
+> will see an unrendered placeholder there instead — `main` is the
+> template, not an installable version. See
+> [Releases](https://github.com/labordynamicsinstitute/stata-ssc2/releases)
+> for every tag you can substitute. Do **not** install from `main`.
 
 ## Example
 
@@ -87,6 +99,13 @@ the SSC package versions that were current when the analysis was run.
 Run [`test.do`](test.do) in Stata. It exercises dated installs,
 delegation to `ssc`, `date(latest)`, `copy`/`type` with dates, and error
 handling.
+
+## Releasing
+
+Releases are cut by the **release** GitHub Actions workflow, which
+renders the version placeholders, publishes the installable tree on the
+`dist` branch, tags it, and redeploys the website. See
+[`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Current Author(s)
 

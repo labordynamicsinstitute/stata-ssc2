@@ -1,0 +1,3 @@
+# Python bytecode from the tools/ and tests/ modules.
+__pycache__/
+*.py[cod]
