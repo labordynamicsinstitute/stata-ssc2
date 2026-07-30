@@ -101,7 +101,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if git ls-remote --exit-code origin "refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "error: tag $TAG is already published; pick a different version." >&2
+            echo "error: tag $TAG is already published." >&2
+            echo "  To finish a run that failed after the tag was pushed, create the" >&2
+            echo "  release manually:  gh release create $TAG --generate-notes" >&2
+            echo "  To re-cut this version, delete the release and its tag first." >&2
             exit 1
           fi
 
@@ -122,6 +125,11 @@ jobs:
           cp -a "$RUNNER_TEMP/dist/." "$RUNNER_TEMP/wt/"
 
           git -C "$RUNNER_TEMP/wt" add -A
+          # --allow-empty covers re-cutting a version whose tag was
+          # deleted (see the runbook): the tag is gone so the guard above
+          # passes, but the previous release commit is still on dist, so
+          # the freshly rendered tree is byte-identical and a plain
+          # commit would fail with "nothing to commit".
           git -C "$RUNNER_TEMP/wt" commit --allow-empty -m "release $TAG"
           git -C "$RUNNER_TEMP/wt" tag -a "$TAG" -m "ssc2 $TAG"
           git -C "$RUNNER_TEMP/wt" push --atomic origin dist "refs/tags/$TAG"
@@ -189,7 +197,11 @@ jobs:
 
           git add CITATION.cff
           git commit -m "chore: citation metadata for $TAG"
-          git push --force-with-lease -u origin "citation/$TAG"
+          # Plain --force, not --force-with-lease: a fresh runner has no
+          # remote-tracking ref for this branch, so the lease has no
+          # baseline and git rejects the push as "stale info". The branch
+          # is workflow-owned and disposable, so --force is appropriate.
+          git push --force -u origin "citation/$TAG"
           gh pr create \
             --base main \
             --head "citation/$TAG" \
