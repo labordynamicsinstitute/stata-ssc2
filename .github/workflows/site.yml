@@ -2,12 +2,15 @@
 # GitHub Pages deployment.
 #
 #   build:  runs on every PR and every push to main, weekly by cron, and
-#           whenever release.yml calls this workflow. Refreshes the
-#           embedded snapshot/package data, regenerates the Reference
-#           page from the Stata help file, renders version placeholders
-#           to the newest stable release tag, then uploads the site as
-#           the Pages artifact. On PRs this artifact can be downloaded
-#           from the run page to inspect the HTML without deploying.
+#           whenever release.yml calls this workflow. Renders version
+#           placeholders to the newest stable release tag, then refreshes
+#           the embedded snapshot/package data and regenerates the
+#           Reference page from the Stata help file, then uploads the
+#           site as the Pages artifact -- rendering runs first so that
+#           any @TOKEN@-shaped string spliced in by the data refresh
+#           cannot trip render_docs.py's leftover-placeholder check. On
+#           PRs this artifact can be downloaded from the run page to
+#           inspect the HTML without deploying.
 #   deploy: runs only for main (pushes, cron, and release calls), never PRs.
 #
 # The weekly rebuild keeps embedded data at most 7 days stale; the page's
@@ -51,13 +54,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Render version placeholders in the site
+        # Edits the CI working copy in place; nothing is committed back.
+        # Runs before the data refresh below so that upstream mirror data
+        # spliced into index.html cannot introduce an @TOKEN@-shaped
+        # string that render_docs.py would otherwise fail the build on.
+        run: python3 tools/render_docs.py site/about.html site/index.html
       - name: Refresh embedded snapshot and package data
         run: python3 site/build_data.py site/index.html
       - name: Regenerate Reference page from the Stata help file
         run: python3 site/build_reference.py sthlp/ssc2.sthlp site/reference.html
-      - name: Render version placeholders in the site
-        # Edits the CI working copy in place; nothing is committed back.
-        run: python3 tools/render_docs.py site/about.html site/index.html
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:

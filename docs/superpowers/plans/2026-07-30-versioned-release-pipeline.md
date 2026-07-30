@@ -2203,6 +2203,11 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # A release must be cut from main: dist's history, the citation PR's
+    # base (origin/main), and site.yml's deploy gate (github.ref ==
+    # refs/heads/main) all assume it, so a dispatch from a feature branch
+    # would silently disagree with all three.
+    if: github.ref == 'refs/heads/main'
     outputs:
       version: ${{ steps.build.outputs.version }}
       tag: ${{ steps.build.outputs.tag }}

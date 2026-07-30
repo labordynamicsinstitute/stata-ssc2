@@ -64,11 +64,11 @@ package — use the release tag instead of `latest`:
 net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/@VERSION_TAG@/")
 ```
 
-> On the `main` branch `@VERSION_TAG@` above is a build placeholder. Each
-> published release renders it to that release's own tag; see
+> The tag above is substituted at release time. On the `main` branch you
+> will see an unrendered placeholder there instead — `main` is the
+> template, not an installable version. See
 > [Releases](https://github.com/labordynamicsinstitute/stata-ssc2/releases)
-> for every tag you can substitute. Do **not** install from `main` — its
-> version strings are unrendered placeholders.
+> for every tag you can substitute. Do **not** install from `main`.
 
 ## Example
 

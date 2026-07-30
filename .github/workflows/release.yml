@@ -11,7 +11,9 @@
 #   5. creates the GitHub release -- which is also what Zenodo watches,
 #      and Zenodo archives the tag's tarball, so the DOI metadata comes
 #      from the rendered CITATION.cff on dist;
-#   6. for stable releases only, force-moves the floating `latest` tag;
+#   6. for stable releases only, force-moves the floating `latest` tag.
+#      This happens after the release exists, so a failed release cannot
+#      leave `latest` pointing at a version with nothing behind it;
 #   7. for stable releases only, opens a pull request against main
 #      updating CITATION.cff's two release fields. It is never pushed
 #      straight to main -- a human merges it;
@@ -58,6 +60,11 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # A release must be cut from main: dist's history, the citation PR's
+    # base (origin/main), and site.yml's deploy gate (github.ref ==
+    # refs/heads/main) all assume it, so a dispatch from a feature branch
+    # would silently disagree with all three.
+    if: github.ref == 'refs/heads/main'
     outputs:
       version: ${{ steps.build.outputs.version }}
       tag: ${{ steps.build.outputs.tag }}
@@ -100,6 +107,9 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # Fail early and legibly on an accidental rerun, before anything
+          # is pushed. Without this, a rerun renders a byte-identical tree
+          # and dies on an opaque "nothing to commit" from git instead.
           if git ls-remote --exit-code origin "refs/tags/$TAG" >/dev/null 2>&1; then
             echo "error: tag $TAG is already published." >&2
             echo "  To finish a run that failed after the tag was pushed, create the" >&2
@@ -132,6 +142,8 @@ jobs:
           # commit would fail with "nothing to commit".
           git -C "$RUNNER_TEMP/wt" commit --allow-empty -m "release $TAG"
           git -C "$RUNNER_TEMP/wt" tag -a "$TAG" -m "ssc2 $TAG"
+          # One atomic push: a branch that lands without its tag would
+          # leave an untagged release commit on dist and wedge the rerun.
           git -C "$RUNNER_TEMP/wt" push --atomic origin dist "refs/tags/$TAG"
 
       - name: Create the GitHub release
@@ -152,11 +164,17 @@ jobs:
             "$flag"
 
       - name: Move the latest tag
+        # Runs AFTER the release exists. If gh release create fails, we do
+        # not want `latest` already advertising a version with no release
+        # (and so no Zenodo archive) behind it.
         if: ${{ steps.build.outputs.prerelease == 'false' }}
         env:
           TAG: ${{ steps.build.outputs.tag }}
         run: |
           set -euo pipefail
+          # "$TAG^{}" peels the annotated tag object down to its commit.
+          # Without the peel git creates a nested tag-of-a-tag, and the
+          # entire documented install path rests on this ref.
           git -C "$RUNNER_TEMP/wt" tag -f latest "$TAG^{}"
           git -C "$RUNNER_TEMP/wt" push -f origin "refs/tags/latest:refs/tags/latest"
 

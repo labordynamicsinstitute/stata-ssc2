@@ -62,6 +62,12 @@ common history with the orphan `dist` branch the new tags live on, so
 GitHub has nothing to diff the new tag against. Write that first
 release's notes by hand instead of trusting `--generate-notes`.
 
+There is currently no `latest` tag on the remote at all — only
+`v0.5-beta` and `v1.1.7` exist. Until the first release runs, the
+primary documented install command (the one using `latest`) is a 404.
+Run the first release immediately after merging, in the same sitting,
+so that window stays as short as possible.
+
 ## After the workflow runs: the CITATION.cff pull request
 
 Stable releases leave one thing for you to do. The workflow opens a pull
@@ -187,14 +193,20 @@ which ssc2
   permissions = Read and write**, with **"Allow GitHub Actions to create
   and approve pull requests"** ticked (the citation PR needs it), and
   **Settings → Pages → Source = GitHub Actions**.
-- If `main` is protected, nothing breaks: the workflow pushes only to
-  `dist`, to tags, and to `citation/*` branches, and reaches `main`
-  solely through a pull request you merge. If *tags* are protected, add
-  an exception for the `github-actions[bot]` identity.
+- If `main` is protected with required status checks, the citation PR
+  can get stuck: it is opened with `GITHUB_TOKEN`, and PRs opened by
+  `GITHUB_TOKEN` do not trigger `pull_request` workflows, so `tests.yml`
+  and `site.yml` never report a status on the `citation/vX.Y.Z` branch.
+  If `main` requires those checks to pass, the PR cannot be merged
+  without an admin override. If *tags* are protected, add an exception
+  for the `github-actions[bot]` identity.
 - If the citation pull request step fails, the release itself is already
   done — the tag, the GitHub release and the `latest` tag all exist. Only
   the `main`-side metadata is missing, and you can apply it by hand:
   `python3 tools/citation.py --version X.Y.Z --in-place CITATION.cff`.
+  Because the `site` job has `needs: release`, that failure also skips
+  the website redeploy; rerun or manually dispatch `site.yml` to publish
+  it.
 - Deleting a release means deleting both the GitHub release and its tag.
   If it was the newest stable one, re-point `latest` by hand:
   `git push -f origin <previous-tag>^{}:refs/tags/latest`.
@@ -229,4 +241,8 @@ which ssc2
   resolve straight to a commit.
 - To genuinely re-cut a version — not just finish a failed run — delete
   both the GitHub release and its tag first. With both gone, the
-  workflow's tag-exists guard passes and it permits the run.
+  workflow's tag-exists guard passes and it permits the run. Also delete
+  the `citation/vX.Y.Z` branch and close its pull request if one was
+  opened for the version being re-cut: otherwise the re-cut run's
+  `gh pr create` fails on a branch/PR that already exists, reddening a
+  run whose release actually succeeded.
