@@ -8,10 +8,10 @@
 #   3. renders the @TOKEN@ placeholders into a release tree;
 #   4. publishes that tree as a commit on the orphan `dist` branch and
 #      tags it. `main` is never modified;
-#   5. for stable releases only, force-moves the floating `latest` tag;
-#   6. creates the GitHub release -- which is also what Zenodo watches,
+#   5. creates the GitHub release -- which is also what Zenodo watches,
 #      and Zenodo archives the tag's tarball, so the DOI metadata comes
 #      from the rendered CITATION.cff on dist;
+#   6. for stable releases only, force-moves the floating `latest` tag;
 #   7. for stable releases only, opens a pull request against main
 #      updating CITATION.cff's two release fields. It is never pushed
 #      straight to main -- a human merges it;
@@ -100,6 +100,11 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          if git ls-remote --exit-code origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "error: tag $TAG is already published; pick a different version." >&2
+            exit 1
+          fi
+
           if git ls-remote --exit-code --heads origin dist >/dev/null 2>&1; then
             git fetch origin dist:dist
             git worktree add "$RUNNER_TEMP/wt" dist
@@ -117,19 +122,9 @@ jobs:
           cp -a "$RUNNER_TEMP/dist/." "$RUNNER_TEMP/wt/"
 
           git -C "$RUNNER_TEMP/wt" add -A
-          git -C "$RUNNER_TEMP/wt" commit -m "release $TAG"
+          git -C "$RUNNER_TEMP/wt" commit --allow-empty -m "release $TAG"
           git -C "$RUNNER_TEMP/wt" tag -a "$TAG" -m "ssc2 $TAG"
-          git -C "$RUNNER_TEMP/wt" push origin dist
-          git -C "$RUNNER_TEMP/wt" push origin "$TAG"
-
-      - name: Move the latest tag
-        if: ${{ steps.build.outputs.prerelease == 'false' }}
-        env:
-          TAG: ${{ steps.build.outputs.tag }}
-        run: |
-          set -euo pipefail
-          git -C "$RUNNER_TEMP/wt" tag -f latest "$TAG"
-          git -C "$RUNNER_TEMP/wt" push -f origin latest
+          git -C "$RUNNER_TEMP/wt" push --atomic origin dist "refs/tags/$TAG"
 
       - name: Create the GitHub release
         env:
@@ -147,6 +142,15 @@ jobs:
             --title "ssc2 $TAG" \
             --generate-notes \
             "$flag"
+
+      - name: Move the latest tag
+        if: ${{ steps.build.outputs.prerelease == 'false' }}
+        env:
+          TAG: ${{ steps.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git -C "$RUNNER_TEMP/wt" tag -f latest "$TAG^{}"
+          git -C "$RUNNER_TEMP/wt" push -f origin "refs/tags/latest:refs/tags/latest"
 
       - name: Open a pull request syncing CITATION.cff on main
         # Stable releases only: an -rc.N candidate should not change the
@@ -185,7 +189,7 @@ jobs:
 
           git add CITATION.cff
           git commit -m "chore: citation metadata for $TAG"
-          git push -u origin "citation/$TAG"
+          git push --force-with-lease -u origin "citation/$TAG"
           gh pr create \
             --base main \
             --head "citation/$TAG" \
