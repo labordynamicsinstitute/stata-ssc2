@@ -1,0 +1,63 @@
+# Build and deploy the ssc2 website (site/ directory) via Action-based
+# GitHub Pages deployment.
+#
+#   build:  runs on every PR and every push to main, and weekly by cron.
+#           Refreshes the embedded snapshot/package data and regenerates
+#           the Reference page from the Stata help file, then uploads the
+#           site as the Pages artifact. On PRs this artifact can be
+#           downloaded from the run page to inspect the HTML without
+#           deploying anything.
+#   deploy: runs only for main (pushes and the weekly cron), never PRs.
+#
+# The weekly rebuild keeps embedded data at most 7 days stale; the page's
+# own single async API call tops up newer snapshot dates per visit.
+# Data regeneration happens in CI at build time and lands in the deployed
+# artifact only -- nothing is committed back to the repository.
+#
+# Requires: repository Settings -> Pages -> Source = "GitHub Actions".
+
+name: site
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "30 6 * * 1"      # Mondays 06:30 UTC (after the mirror's daily run)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Refresh embedded snapshot and package data
+        run: python3 site/build_data.py site/index.html
+      - name: Regenerate Reference page from the Stata help file
+        run: python3 site/build_reference.py sthlp/ssc2.sthlp site/reference.html
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

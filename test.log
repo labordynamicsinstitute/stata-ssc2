@@ -1,163 +1,1032 @@
+--------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  C:\Users\itj5\OneDrive - Cornell University\AEAWorkspace\stata-ssc2\test.log
+  log type:  text
+ opened on:  29 Jul 2026, 15:12:37
 
-  ___  ____  ____  ____  ____ ®
- /__    /   ____/   /   ____/      17.0
-___/   /   /___/   /   /___/       MP—Parallel Edition
+. do "C:\Users\itj5\OneDrive - Cornell University\AEAWorkspace\stata-ssc2\test.do"
 
- Statistics and Data Science       Copyright 1985-2021 StataCorp LLC
-                                   StataCorp
-                                   4905 Lakeway Drive
-                                   College Station, Texas 77845 USA
-                                   800-STATA-PC        https://www.stata.com
-                                   979-696-4600        stata@stata.com
+. // -----------------------------------------------------------------------
+. // Test suite for ssc2.  Run from the repository root:
+. //     stata -b do test.do          (or interactively after -cd- here)
+. // Example package: reghdfe (per project specification).
+. // Known ground truth, read from the mirror on 2026-07-08:
+. //   snapshot 2022-01-07 -> reghdfe "*! version 5.7.3 13nov2019"
+. // -----------------------------------------------------------------------
+. clear all
 
-Stata license: 2-user 32-core network, expiring 27 Apr 2023
-Serial number: 501709300062
-  Licensed to: Lars Vilhuber (Data Editor)
-               American Economic Association
+. version 14
 
-Notes:
-      1. Stata is running in batch mode.
-      2. Unicode is supported; see help unicode_advice.
-      3. More than 2 billion observations are allowed; see help obs_advice.
-      4. Maximum number of variables is set to 5,000; see help set_maxvar.
+. 
+. // ---- helper: assert the installed reghdfe.ado starbang contains a string
+. capture program drop assert_reghdfe_version
 
-. do test.do 
+. program define assert_reghdfe_version
+  1.     args needle
+  2.     quietly findfile reghdfe.ado
+  3.     tempname fh
+  4.     file open `fh' using `"`r(fn)'"', read text
+  5.     file read `fh' line
+  6.     file close `fh'
+  7.     di as txt `"    installed: `line'"'
+  8.     assert strpos(`"`line'"', `"`needle'"') > 0
+  9. end
 
-. // testing
-. net install ssc2, all replace from("https://raw.githubusercontent.com/labordy
-> namicsinstitute/ssc-mirror-stata/master")
+. 
+. // ---- 0. install the ssc2 under test (from THIS working copy) ------------
+. // To test-install over the network instead, use your fork, e.g.:
+. //   net install ssc2, all replace from("https://raw.githubusercontent.com/<user>/stata-ss
+> c2/<branch>")
+. capture ado uninstall ssc2
+
+. discard
+
+. net install ssc2, all replace from("`c(pwd)'")
 checking ssc2 consistency and verifying not already installed...
-installing into /home/statauser/ado/plus/...
+installing into C:\Users\itj5\ado\plus\...
 installation complete.
 
-. // install a specific version
-. ssc2 install cmp, date(2022-01-07)
+. discard
+
+. capture noisily ssc2 snapshots     // canary: exists only in the rewrite
+Snapshots of the SSC archive are stored as date-stamped git tags
+(YYYY-MM-DD) in the mirror repository:
+    https://github.com/labordynamicsinstitute/ssc-mirror/tags
+
+  - daily snapshots exist from 2021-12-21 onward, with occasional
+    gaps listed in the mirror's ERRATA
+  - three earlier snapshots exist: 2017-08-10, 2021-04-15, 2021-08-10
+  - date(latest) uses the most recent mirrored state
+
+The mirror location can be overridden with the from() option,
+the Stata global SSC2_MIRROR, or the environment variable of
+the same name (see help ssc2).
+
+Example:  ssc2 install reghdfe, date(2022-01-07)
+
+. assert _rc==0
+
+. 
+. // ---- 1. generic install: ssc2 must fall back onto ssc -------------------
+. capture ado uninstall reghdfe
+
+. ssc2 install reghdfe
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
+installation complete.
+
+. assert_reghdfe_version "version"        // installed, starbang present
+    installed: *! version 6.13.1 10Jan2026
+
+. capture noisily assert_reghdfe_version "5.7.3"
+    installed: *! version 6.13.1 10Jan2026
+assertion is false
+
+. assert _rc!=0                           // current SSC version is NOT 5.7.3
+
+. ssc2 uninstall reghdfe                  // exercises uninstall pass-through
+
+package reghdfe from http://fmwww.bc.edu/repec/bocode/r
+      'REGHDFE': module to perform linear or instrumental-variable regression absorbing any 
+> number of high-dimensional fixed effects
+
+(package uninstalled)
+
+. 
+. // ---- 2. dated snapshot install: validate the older version --------------
+. ssc2 install reghdfe, date(2022-01-07)
 snapshot selected: 2022-01-07
-installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-m
-> irror/2022-01-07/fmwww.bc.edu/repec/bocode/...
-checking cmp consistency and verifying not already installed...
-installing into /home/statauser/ado/plus/...
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2022-01
+> -07/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
 installation complete.
 
-. which cmp
-/home/statauser/ado/plus/c/cmp.ado
-*! cmp 8.6.7 5 January 2022
-*! Copyright (C) 2007-22 David Roodman 
-*! Version history at bottom
+. assert_reghdfe_version "5.7.3"
+    installed: *! version 5.7.3 13nov2019
 
-. ssc uninstall cmp
+. ssc2 uninstall reghdfe
 
-package cmp from https://raw.githubusercontent.com/labordynamicsinstitute/ssc-m
-> irror/2022-01-07/fmwww.bc.edu/repec/bocode/c
-      'CMP': module to implement conditional (recursive) mixed process estimato
-> r
+package reghdfe from https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/202
+> 2-01-07/fmwww.bc.edu/repec/bocode/r
+      'REGHDFE': module to perform linear or instrumental-variable regression absorbing any 
+> number of high-dimensional fixed effects
 
 (package uninstalled)
 
-. // install using standard command
-. ssc install cmp
-checking cmp consistency and verifying not already installed...
-installing into /home/statauser/ado/plus/...
+. 
+. // ---- 3. date normalization: 2022-1-7 must equal 2022-01-07 --------------
+. ssc2 install reghdfe, date(2022-1-7)
+snapshot selected: 2022-01-07
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2022-01
+> -07/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
 installation complete.
 
-. which cmp
-/home/statauser/ado/plus/c/cmp.ado
-*! cmp 8.7.5 3 July 2023
-*! Copyright (C) 2007-23 David Roodman 
+. assert_reghdfe_version "5.7.3"
+    installed: *! version 5.7.3 13nov2019
 
-. ssc uninstall cmp
+. ssc2 uninstall reghdfe
 
-package cmp from http://fmwww.bc.edu/repec/bocode/c
-      'CMP': module to implement conditional (recursive) mixed process estimato
-> r
+package reghdfe from https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/202
+> 2-01-07/fmwww.bc.edu/repec/bocode/r
+      'REGHDFE': module to perform linear or instrumental-variable regression absorbing any 
+> number of high-dimensional fixed effects
 
 (package uninstalled)
 
-. // show that the redirect also works
-. ssc2 install cmp
-installing from  http://fmwww.bc.edu/repec/bocode/...
-checking cmp consistency and verifying not already installed...
-installing into /home/statauser/ado/plus/...
+. 
+. // ---- 3b. replace / update / replaceall semantics -------------------------
+. // ground truth: reghdfe is 5.7.3 in 2022-01-07 and 6.12.3 in 2024-09-27
+. ssc2 install reghdfe, date(2022-01-07)
+snapshot selected: 2022-01-07
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2022-01
+> -07/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
 installation complete.
 
-. which cmp
-/home/statauser/ado/plus/c/cmp.ado
-*! cmp 8.7.5 3 July 2023
-*! Copyright (C) 2007-23 David Roodman 
+. * no option + existing installation: refused (native ssc-like behavior)
+. capture noisily ssc2 install reghdfe, date(2024-09-27)
+snapshot selected: 2024-09-27
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2024-09
+> -27/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+
+the following files already exist and are different:
+    C:\Users\itj5\ado\plus\r\reghdfe.ado
+    C:\Users\itj5\ado\plus\r\reghdfe.mata
+    C:\Users\itj5\ado\plus\r\reghdfe.sthlp
+    C:\Users\itj5\ado\plus\r\reghdfe.mata
+
+no files installed or copied
+(no action taken)
+
+. assert_reghdfe_version "5.7.3"            // unchanged either way
+    installed: *! version 5.7.3 13nov2019
+
+. * replace reinstalls the SAME snapshot only
+. ssc2 install reghdfe, date(2022-01-07) replace
+(replace: reinstalling snapshot 2022-01-07 of reghdfe)
+snapshot selected: 2022-01-07
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2022-01
+> -07/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
+installation complete.
+
+. assert_reghdfe_version "5.7.3"
+    installed: *! version 5.7.3 13nov2019
+
+. capture noisily ssc2 install reghdfe, date(2024-09-27) replace
+ssc2 install: an installed copy of reghdfe is not snapshot 2024-09-27 (found: 2022-01-07; . 
+> = no snapshot date)
+  replace only reinstalls the same snapshot;
+  use update to move to a newer snapshot, or replaceall to replace any version
+
+. assert _rc==110                            // different snapshot: refused
+
+. assert_reghdfe_version "5.7.3"
+    installed: *! version 5.7.3 13nov2019
+
+. * update moves forward...
+. ssc2 install reghdfe, date(2024-09-27) update
+(update: superseding snapshot 2022-01-07 with 2024-09-27)
+snapshot selected: 2024-09-27
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2024-09
+> -27/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
+installation complete.
+
+. assert_reghdfe_version "6.12.3"
+    installed: *! version 6.12.3 08aug2023
+
+. * ...but never backward (friendly no-op, rc 0)
+. ssc2 install reghdfe, date(2022-01-07) update
+(installed snapshot 2024-09-27 is the same as or newer than 2022-01-07; nothing to do)
+(use replaceall to downgrade)
+
+. assert_reghdfe_version "6.12.3"
+    installed: *! version 6.12.3 08aug2023
+
+. * replaceall replaces anything, downgrades included
+. ssc2 install reghdfe, date(2022-01-07) replaceall
+(replaceall: superseding 1 installed copy of reghdfe)
+snapshot selected: 2022-01-07
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2022-01
+> -07/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
+installation complete.
+
+. assert_reghdfe_version "5.7.3"
+    installed: *! version 5.7.3 13nov2019
+
+. ssc2 uninstall reghdfe            // exactly one tracked copy throughout
+
+package reghdfe from https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/202
+> 2-01-07/fmwww.bc.edu/repec/bocode/r
+      'REGHDFE': module to perform linear or instrumental-variable regression absorbing any 
+> number of high-dimensional fixed effects
+
+(package uninstalled)
+
+. capture noisily which reghdfe
+command reghdfe not found as either built-in or ado-file
+
+. assert _rc!=0
+
+. * undated replace over a snapshot-installed copy: retires the dated
+. * entry, delegates to ssc, and leaves exactly one tracked copy
+. ssc2 install reghdfe, date(2022-01-07)
+snapshot selected: 2022-01-07
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2022-01
+> -07/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
+installation complete.
+
+. ssc2 install reghdfe, replace
+(replace: superseding 1 snapshot-installed copy of reghdfe)
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
+installation complete.
+
+. assert_reghdfe_version "version"          // now the current SSC version
+    installed: *! version 6.13.1 10Jan2026
+
+. capture noisily assert_reghdfe_version "5.7.3"
+    installed: *! version 6.13.1 10Jan2026
+assertion is false
+
+. assert _rc!=0
+
+. ssc2 uninstall reghdfe                    // must succeed on the first try
+
+package reghdfe from http://fmwww.bc.edu/repec/bocode/r
+      'REGHDFE': module to perform linear or instrumental-variable regression absorbing any 
+> number of high-dimensional fixed effects
+
+(package uninstalled)
+
+. capture noisily which reghdfe
+command reghdfe not found as either built-in or ado-file
+
+. assert _rc!=0
+
+. * update/replaceall require a snapshot context
+. capture noisily ssc2 install reghdfe, update
+options update and replaceall require date() or from()
+
+. assert _rc==198
+
+. capture noisily ssc2 install reghdfe, replaceall
+options update and replaceall require date() or from()
+
+. assert _rc==198
+
+. * only one of the three may be given
+. capture noisily ssc2 install reghdfe, date(2022-01-07) replace update
+only one of replace, update, and replaceall may be specified
+
+. assert _rc==198
+
+. 
+. // ---- 4. date(latest): releases branch of the mirror ---------------------
+. ssc2 install reghdfe, date(latest)
+snapshot selected: latest (releases branch)
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/release
+> s/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
+installation complete.
+
+. assert_reghdfe_version "version"
+    installed: *! version 6.13.1 10Jan2026
+
+. ssc2 uninstall reghdfe
+
+package reghdfe from https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/rel
+> eases/fmwww.bc.edu/repec/bocode/r
+      'REGHDFE': module to perform linear or instrumental-variable regression absorbing any 
+> number of high-dimensional fixed effects
+
+(package uninstalled)
+
+. 
+. // ---- 5. URL override precedence -----------------------------------------
+. // global override with a bad URL must break dated installs...
+. global SSC2_MIRROR "https://raw.githubusercontent.com/nonexistent-org/nonexistent-repo"
+
+. capture noisily ssc2 install reghdfe, date(2022-01-07)
+could not read the package index at
+    https://raw.githubusercontent.com/nonexistent-org/nonexistent-repo/2022-01-07/fmwww.bc.e
+> du/repec/bocode/r
+possible reasons:
+  - no snapshot exists for 2022-01-07
+  - a network problem, or the mirror host is unreachable
+
+. assert _rc!=0
+
+. // ...and the from() option must take precedence over the (bad) global
+. ssc2 install reghdfe, date(2022-01-07) from("https://raw.githubusercontent.com/labordynami
+> csinstitute/ssc-mirror")
+snapshot selected: 2022-01-07
+installing from  https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2022-01
+> -07/fmwww.bc.edu/repec/bocode/...
+checking reghdfe consistency and verifying not already installed...
+installing into C:\Users\itj5\ado\plus\...
+installation complete.
+
+. assert_reghdfe_version "5.7.3"
+    installed: *! version 5.7.3 13nov2019
+
+. ssc2 uninstall reghdfe
+
+package reghdfe from https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/202
+> 2-01-07/fmwww.bc.edu/repec/bocode/r
+      'REGHDFE': module to perform linear or instrumental-variable regression absorbing any 
+> number of high-dimensional fixed effects
+
+(package uninstalled)
+
+. macro drop SSC2_MIRROR
+
+. 
+. // ---- 6. other pass-through functionality --------------------------------
+. ssc2 hot, n(5)
+
+Top 5 packages at SSC
+
+        Jun 2026   
+  Rank   # hits    Package       Author(s)
+  ----------------------------------------------------------------------
+     1  302733.1    estout        Ben Jann                                
+     2  197157.0    reghdfe       Noah Constantine, Sergio Correia        
+     3  184579.3    winsor2       Yujun Lian                              
+     4  147162.2    outreg2       Roy Wada                                
+     5  137333.8    ftools        Sergio Correia                          
+  ----------------------------------------------------------------------
+  (Click on package name for description)
+
+. ssc2 new
+(contacting http://repec.org)
+
+. ssc2 describe reghdfe                   // no date: delegated to ssc
+
+--------------------------------------------------------------------------------------------
+package reghdfe from http://fmwww.bc.edu/repec/bocode/r
+--------------------------------------------------------------------------------------------
+
+TITLE
+      'REGHDFE': module to perform linear or instrumental-variable regression absorbing any
+        number of high-dimensional fixed effects
+
+DESCRIPTION/AUTHOR(S)
+      
+       reghdfe fits a linear or instrumental-variable regression
+      absorbing an arbitrary number of categorical factors and
+      factorial interactions Optionally, it saves the estimated fixed
+      effects.
+      
+      KW: regression
+      KW: instrumental variables
+      KW: fixed effects
+      KW: high dimension fixed effects
+      
+      Requires: Stata version 11.2 and ftools from SSC (q.v.)
+      
+      Distribution-Date: 20260111
+      
+      Author: Sergio Correia, Board of Governors of the Federal Reserve System
+      Support: email sergio.correia@gmail.com
+      
+      Author: Noah Constantine, Board of Governors of the Federal Reserve System
+      Support: email
+      
+
+INSTALLATION FILES                              (type net install reghdfe)
+      reghdfe.ado
+      reghdfe.mata
+      reghdfe5.mata
+      reghdfe3.ado
+      reghdfe_p.ado
+      reghdfe3_p.ado
+      reghdfe5.ado
+      reghdfe5_p.ado
+      reghdfe_estat.ado
+      reghdfe3_estat.ado
+      reghdfe5_estat.ado
+      reghdfe5_parse.ado
+      reghdfe_footnote.ado
+      reghdfe3_footnote.ado
+      reghdfe5_footnote.ado
+      ../e/estfe.ado
+      reghdfe_header.ado
+      reghdfe5_header.ado
+      reghdfe5_parse.ado
+      reghdfe.sthlp
+      reghdfe3.sthlp
+      reghdfe5.sthlp
+      reghdfe.mata
+      reghdfe_programming.sthlp
+--------------------------------------------------------------------------------------------
+(type ssc install reghdfe to install)
+
+. ssc2 describe reghdfe, date(2022-01-07)
+
+--------------------------------------------------------------------------------------------
+package reghdfe from https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/202
+> 2-01-07/fmwww.bc.edu/repec/bocode/r
+--------------------------------------------------------------------------------------------
+
+TITLE
+      'REGHDFE': module to perform linear or instrumental-variable regression absorbing any
+        number of high-dimensional fixed effects
+
+DESCRIPTION/AUTHOR(S)
+      
+       reghdfe fits a linear or instrumental-variable regression
+      absorbing an arbitrary number of categorical factors and
+      factorial interactions Optionally, it saves the estimated fixed
+      effects.
+      
+      KW: regression
+      KW: instrumental variables
+      KW: fixed effects
+      KW: high dimension fixed effects
+      
+      Requires: Stata version 11.2
+      
+      Distribution-Date: 20191118
+      
+      Author: Sergio Correia, Board of Governors of the Federal Reserve System
+      Support: email sergio.correia@gmail.com
+      
+
+INSTALLATION FILES                              (type net install reghdfe)
+      reghdfe.ado
+      reghdfe.mata
+      reghdfe_old.ado
+      reghdfe_p.ado
+      reghdfe_old_p.ado
+      reghdfe_estat.ado
+      reghdfe_parse.ado
+      reghdfe_footnote.ado
+      reghdfe_old_estat.ado
+      reghdfe_old_footnote.ado
+      ../e/estfe.ado
+      reghdfe_header.ado
+      reghdfe_store_alphas.ado
+      reghdfe.sthlp
+      reghdfe_old.sthlp
+      reghdfe_accelerations.mata
+      reghdfe_bipartite.mata
+      reghdfe_class.mata
+      reghdfe_common.mata
+      reghdfe_constructor.mata
+      reghdfe_lsmr.mata
+      reghdfe_projections.mata
+      reghdfe_transforms.mata
+      reghdfe_mata.sthlp
+--------------------------------------------------------------------------------------------
+(type ssc2 install reghdfe, date(2022-01-07) to install)
+
+. ssc2 describe r, date(2022-01-07)
+--------------------------------------------------------------------------------------------
+https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2022-01-07/fmwww.bc.edu/
+> repec/bocode/r/
+(no title)
+--------------------------------------------------------------------------------------------
+
+PACKAGES you could -net describe-:
+    r2_mz             module to compute McKelvey & Zavoina's R2
+    r2c               module to compute several fit statistics for count data models
+    r2nlsur           module to perform Overall System (NL-SUR) System R2, Adj. R2,
+                        F-Test, and Chi2-Test
+    r2o               module to calculate an ordinal explained variation statistic
+    r2reg3            module to compute System R2, Adj. R2, F-Test, and Chi2-Test after
+                        reg3 or sureg
+    r2sem             module to perform Overall System Structural Equation Modeling (SEM)
+                        R2, Adj. R2, F-Test, and Chi2-Test
+    r2var             Module to Compute (VAR) Overall System R2, F-Test, and Chi2-Test
+    r_ml_stata        module to implement machine learning regression in Stata
+    r_to_d            module for converting Pearson's r to Cohen's d
+    radar             module to draw radar (spider) plots
+    radf              module to calculate unit root tests for explosive behaviour
+    radiusmatch       module to perform distance-weighted radius matching with bias
+                        adjustment
+    raewma            module to plot the risk adjusted exponentially weighted moving
+                        average
+    ralloc            module to design randomized controlled trials
+    ralpha            module to generate pseudo-random characters or words
+    randcmd           module to compute randomization inference p-values
+    randcmdci         module to produce robust randomization-t p-values and confidence
+                        intervals for regression coefficients
+    randcoef          module to estimate correlated random effects and correlated random
+                        coefficients models
+    randinf           module to calculate the treatment effect and p-value of a stratified
+                        randomized controlled experiment
+    randomid          module to identify every observation in the dataset with random
+                        alphanumeric characters
+    randomize         module to create random assignments for experimental trials,
+                        including blocking, balance checking, and automated
+                        rerandomization
+    randomizr         module to implement random assignment procedures
+    randomselect      module to randomly select and tag observations
+    randomtag         module to draw observations without replacement
+    randtreat         module to randomly assign treatments uneven treatments and deal with
+                        misfits
+    randtreatseq      module for generating treatments in a random sequence for each
+                        individual in the sample
+    rangejoin         module to form pairwise combinations if a key variable is within
+                        range
+    rangerun          module to run Stata commands on observations within range
+    rangestat         module to generate statistics using observations within range
+    rankseg           module to compute rank-order segregation measures with finite
+                        sample-bias correction
+    ranktest          module to test the rank of a matrix
+    ranova            module to estimate single factor repeated measures ANOVA
+    ranvar            module to compute the random group variance estimator of the mean
+                        for survey data
+    ras               module to implement biproportional scaling (RAS) method
+    raschcvt          module to produce data in WINSTEPS format
+    raschfit          module to implement the Raschfit algorithm defined by Hardouin and
+                        Mesbah (2004)
+    raschify          module to transform 1PL model estimates to Rasch metric
+    raschpower        module to estimate power of the Wald test in order to compare the
+                        means of the latent trait in two groups of individuals
+    raschtest         module to estimate parameters of the Rasch model by CML, MML or GEE
+    raschtestv7       module to estimate parameters of the Rasch model by CML, MML or GEE
+                        (v7)
+    rasprt            module to plot the risk adjusted sequential probability ratio test
+                        (+/- risk adjusted cusum)
+    rassign           module to perform regression-based test for random assignment to
+                        peer groups
+    rbounds           module to perform Rosenbaum sensitivity analysis for average
+                        treatment effects on the treated
+    rc2               module to estimate Goodman's Row and Columns model 2
+    rc_spline         module to generate restricted cubic splines
+    rca               module to compute various revealed comparative advantage (RCA)
+                        indices
+    rcall             module to provide seamless R in Stata
+    rcd               module to run commands recursively
+    rcentile          module to compute robust confidence intervals for percentiles
+    rcl               module for estimation and simulation of random coefficient logit
+                        models
+    rcm               module to implement regression control method / panel data approach
+                        to program evaluation
+    rcolp2mat         module to produce a two-way table with row and column percentages as
+                        a matrix
+    rcsgen            module to generate restricted cubic splines and their derivatives
+    rcspline          module for restricted cubic spline smoothing
+    rct_minim         module to assign treatments to subjects in a controlled trial
+    rctable           module to create a table used in randomized controlled trials
+    rctmiss           module to analyse a randomised controlled trial (RCT) allowing for
+                        informatively missing outcome data
+    rd                module for regression discontinuity estimation
+    rdatasets         module to access R datasets available in CSV format from GitHub
+    rdbalance         module to compute covariate balance statistics with formatted table
+                        output in treatment effect analysis and RDD
+    rdci              module to calculate risk difference confidence intervals
+    rdcont            module to compute non-randomized approximate sign test of density
+                        continuity
+    rdcv              module to perform Sharp Regression Discontinuity Design with Cross
+                        Validation Bandwidth Selection
+    rddsga            module to conduct subgroup analysis for regression discontinuity
+                        designs
+    rdecompose        module to implements Gupta's rate decomposition method for
+                        aggregated data
+    rdesigni          module to perform design analysis
+    rdexo             module to produces relevant estimates for testing the external
+                        validity of LATE
+    rdpermute         module to perform a permutation test for the Regression Kink (RK)
+                        and Regression Discontinuity (RD) Design
+    rdplot            module to graph residual distribution after regression-type command
+    rdpower           module to perform power calculations for random designs
+    rdqte             module for estimation and robust inference for quantile treatment
+                        effects (QTE) in regression discontinuity designs (RDD)
+    rdrobust          module to provide robust data-driven inference in the
+                        regression-discontinuity design
+    rds               module for respondent driven sampling
+    readlog           module to read and process a file
+    readreplace       module to make replacements that are specified in an external
+                        dataset
+    readshare         module to access Survey of Health Ageing and Retirement in Europe
+                        (SHARE) data
+    readwind          module to read the data downloaded from the Wind into Stata in a
+                        long form
+    realcomimpute     module to export and import data to the realcomImpute software
+                        package
+    recap             module to perform capture-recapture analysis for three sources with
+                        Goodness-of-Fit based confidence intervals
+    recast2           module to change storage type of variable
+    reclink           module to probabilistically match records
+    recocl            module to recode municipal codes for Chile (CL)
+    recode2           module to provide extended recode capabilities
+    reffadjust        module to estimate adjusted regression coefficients for the
+                        association between two random effects variables
+    reffect           module to compute Pearson's r Effect Size Computation for Analysis
+                        of Variance (ANOVA)
+    reformat          module to reformat regression output
+    reg2docx          module to report regression results to formatted table in DOCX file.
+    reg2hdfe          module to estimate a Linear Regression Model with two High
+                        Dimensional Fixed Effects
+    reg2logit         module to approximate logistic regression parameters using OLS
+                        linear regression
+    reg_sandwich      module to compute cluster-robust (sandwich) variance estimators with
+                        small-sample corrections for linear regression
+    reg_ss            module to compute confidence intervals, standard errors, and
+                        p-values in a linear regression in which the regressor of interest
+                        has a shift-share structure
+    regall            module to run and compare all regressions derived from complete sets
+                        of regressors
+    reganat           module to perform graphical inspection of linear multivariate models
+                        based on regression anatomy
+    regaxis           module to make regular linear and logarithmic axis scales, ranges
+                        and tick lists
+    regcheck          module to examine regression assumptions
+    regcoef           module to compute coefficients for quantifying relative importance
+                        of predictors
+    regdis            module to control variables and decimals in regression displays
+    regen             module to create new or change existing variable
+    regfit            module to Output The Equation of a Regression
+    reggae_music      module for rasta Stata users
+    reghdfe           module to perform linear or instrumental-variable regression
+                        absorbing any number of high-dimensional fixed effects
+    regife            module to estimate linear models with interactive fixed effects
+    regintfe          module to estimate a linear regression model with one interacted
+                        high dimensional fixed effect
+    reglike           module to calculate log-likelihood function value from regress
+    regmain           module to perform Quasi-Maximum Likelihood Regression
+    regoprob          module to estimate random effects generalized ordered probit models
+    regoprob2         module to estimate random effects generalized ordered probit models
+                        (update)
+    regpar            module to compute population attributable risks from binary
+                        regression models
+    regplot           module to plot regression fit
+    regpred           module to calculate linear regression predictions
+    regresby          module to generate regression residuals by byvarlist
+    regsave           module to save regression results to a Stata-formatted dataset
+    regtable          module to produce file of conditional average treatment effects
+    regwls            module to estimate Weighted Least Squares with factor variables
+    regxfe            module to fit a linear high-order fixed-effects model
+    rel_clust         module to compute indices of relative clusterability of variables
+    reldist           module for relative distribution analysis
+    relicoef          module to compute Raykov's factor reliability coefficient
+    relogit           module to perform Rare Event Logistic Regression
+    relrank           module to generate relative data (grade transformation)
+    rely              module to graph reliability plot of predictions for linear or
+                        logistic regression models
+    relyplot          module to graph reliability plot of predictions for linear or
+                        logistic regression models
+    remr              module to implement robust error meta-regression method for
+                        dose–response meta-analysis
+    renames           module to rename variables
+    renfiles          module providing a convenient way to change filenames for (a matched
+                        subset of) files in a directory of choice (and, if wanted, also
+                        recursively in a matched subset of offspring-directorie
+    rensheet          module to edit variable names and labels
+    renvarlab         module to rename variables, with option of using variable labels to
+                        create new variable names
+    reorder           module to reorder variables in dataset, reversibly
+    repest            module to run estimations with weighted replicate samples and
+                        plausible values
+    replacebylab      module to replace values by drawing on value labels
+    report            module to produce tables for XML
+    reporterror       module to estimate true distribution from noisy measurements
+    repsample         module to perform representative sampling from a population or
+                        theoretical distributions
+    reset             module to calculate specification tests in regression analysis
+    reset2            module to calculate specification tests in 2SLS-IV regression
+                        analysis
+    resetxt           Module to Compute Panel Data REgression Specification Error Tests
+                        (RESET)
+    reshape3          module to enhance reshape for multilevel data
+    reshape7          module to provide improved reshape
+    reshape8          module to reshape while preserving variable labels
+    resp              module to compute Index of Relative Specialization
+    respdiff          module for generating response differentiation indices
+    reswage           module to estimate a reservation wage model with endogenous
+                        selection
+    retrodesign       module to compute type-S (Sign) and type-M (Magnitude) errors
+    reu               module to compute number of random error units (REU) in
+                        epidemiological studies
+    rev               module to reverse value order of variables
+    revcat            module to fit reversible catalytic models
+    revrs             module to reverse variable value order
+    revv              module to reverse value order of variables
+    reweight          module for survey reweighting
+    reweight2         module to reweight survey data to user-defined control totals
+    rewrite           module to rewrite text files from disk performing macro
+                        substitutions
+    rfl               module to maintain lists of recently accessed files
+    rforest           module to implement Random Forest algorithm
+    rfregk            module to estimate random-effects model with weights
+    rgb2              module to generate GB2 random numbers
+    rglm              module to estimate robust generalized linear models
+    rgroup            module for Random Group Variance Estimation
+    rhausman          module to perform Robust Hausman Specification Test
+    rhetplot          module to graph residual heteroscedasticity after regression-type
+                        command
+    rho_xtregar       module to estimate a consistent and asymptotically unbiased
+                        autocorrelation coefficient for xtregar fixed-effects or
+                        random-effects linear model with an AR(1) disturbance
+    rhsbsample        module for repeated half-sample bootstrap sampling
+    richness          module to compute measures of income richness
+    ridder            module to solve equation by Ridder's method
+    ridge2sls         module to compute Two-Stage Least Squares (2SLS) Ridge & Weighted
+                        Regression
+    ridgereg          module to compute Ridge Regression Models
+    rif               module to compute Recentered Influence Functions (RIF):
+                        RIF-Regression and RIF-Decomposition
+    rifle             module to perform Randomization Inference for Leader Effects
+    rii               module to perform Repeated-Imputation Inference
+    riigen            module to generate Variables to Compute the Relative Index of
+                        Inequality
+    rioc              module to compute Relative improvement over chance (RIOC)
+    ritest            module to perform randomization inference and permutation tests
+    rkqte             module for estimation and robust inference for quantile treatment
+                        effects (QTE) in regression kink designs (RKD)
+    rmanova           module to estimate repeated measures ANOVA
+    rmclass           module to compute classification statistics for data with repeated
+                        measures
+    rmcorr            module to compute a correlation for data with repeated measures
+    rmfiles           module to provide a convenient way to remove matched files within a
+                        specified directory and possibly, if applicable, corresponding
+                        empty directories (which will also, if wanted, be applied
+    rmhbounds         module to refine mhbounds to remove the cap on the number of strata
+                        and replace the large sample approximation for E and V with exact
+                        moments
+    rmloa             module to compute limits of agreement for data with repeated
+                        measures
+    rmpw              module to implement the RMPW method of causal mediation analysis to
+                        decompose treatment effects into "direct" and "indirect" effects
+    rmse              module to calculate raw or adjusted RMSE (Root MSE)
+    rnd               modules for random number generation
+    robbox            module to compute generalized box plots
+    robit             module to estimate robit regression for binary outcomes
+    robjb             module to compute Brys et al. (2008) robust Jarque-Bera Normality
+                        test
+    roblpr            module to estimate long memory in a set of timeseries
+    robmv             module for robust multivariate estimation of location and covariance
+    robreg            module providing robust regression estimators
+    robreg10          module providing robust regression estimators
+    robstat           module to compute robust univariate statistics
+    robumeta          module to perform robust variance estimation in meta-regression with
+                        dependent effect size estimates
+    robustate         module for estimation and inference for the average treatment effect
+                        (ATE) robustly against the limited overlap
+    robustpf          module for robust estimation of production functions with errors in
+                        proxy variables
+    rocmic            module to estimate minimally important change (MIC) thresholds for
+                        continuous clinical outcome measures using ROC curves
+    rocss             module to calculate ROC curve and other statistics for any
+                        classification method
+    roctabi           module for performing nonparametric ROC analysis using summarized
+                        data
+    rolling2          module to perform rolling window and recursive estimation
+    rolling3          module to compute predicted values for rolling regressions
+    rollreg           module to perform rolling regression estimation
+    rollstat          module to compute rolling-window statistics for time series or panel
+                        data
+    roman             module for handling Roman numerals and decimal equivalents
+    romantoarabic     module for converting roman numerals to arabic numbers
+    rosali            module to detect of response shift at item-level between two times
+                        of measurement
+    rosssekh          module to perform forecast comparison and forecast rationality tests
+    rotate2           module to produce sorted and labeled rotated matrix
+    rowmat_utils      module to perform parallel computation on sequences of matrices in
+                        Mata
+    rowranks          module to create row ranks of a set of variables
+    rowsort           module to row sort a set of integer variables
+    rpaxioms          module to test and evaluate axioms of revealed preferences
+    rpme              module to compute Robust Pareto midpoint estimator
+    rpnfcn            module to provide a Mata generic function evaluator based on Reverse
+                        Polish Notation
+    rq                module to compute Reynal-Querol index of ethnic polarization
+    rqr               module to estimate the residualized quantile regression model
+    rqrs              module to install required community-contributed packages
+    rrcalc            module to calculate AAPOR compliant response rates
+    rrlogit           module to estimate logistic regression for randomized response data
+    rrr               module to perform Reduced rank regression
+    rrreg             module to estimate linear probability model for randomized response
+                        data
+    rscore            module for estimation of responsiveness scores
+    rscript           module to call an R script from Stata
+    rsens             module to perform sensitivity analysis after matching with multiple
+                        nearest neighbours
+    rsgt              module to generate skewed generalized t random numbers
+    rsoort            module to perform Oort's Structural Equations Modeling (SEM) based
+                        procedure to detect Response Shift
+    rsort             module to perform reproducible random sorting of dataset
+    rsource           module to run R from inside Stata using an R source file
+    rspeedindex       module to compute a response speed index and perform outlier
+                        identification
+    rsz               module to draw a stratified simple random sample, a systematic
+                        sample, or a randomly split zones sample, with probabilities
+                        proportional to size
+    rtfutil           module to provide utilities for writing Rich Text Format (RTF) files
+    rtmci             module to estimate regression to the mean effects with confidence
+                        intervals
+    rtnorm            Mata module to produce truncated normal pseudorandom variates (Mata)
+    runby             module to run a user's program on by-groups of observations
+    runmixregls       module to run the MIXREGLS software from within Stata
+    runmlwin          module to run the MLwiN multilevel modelling software from within
+                        Stata
+    runmplus          module to run Mplus from Stata
+    running           module for symmetric nearest neighbour smoothing
+    runningprod       Mata module to obtain the running product of a vector
+    runparscale       module to run PARSCALE from Stata
+    russ_stata        tutorial in Russian
+    rvfplot2          module to produce residual-versus-fitted plot after regression-type
+                        command
+    rvlrplot          module to plot residuals vs lagged residuals for time series data
+    rvpplot2          module to graph residual-versus-predictor plot after regression-type
+                        command
+    rwg               module to compute within group interrater reliability
+    rwolf             module to calculate Romano-Wolf stepdown p-values for multiple
+                        hypothesis testing
+    rwolf2            module to calculate Romano-Wolf stepdown p-values for multiple
+                        hypothesis testing
+    rwrmed            module for performing causal mediation analysis using
+                        regression-with-residuals
+--------------------------------------------------------------------------------------------
+(type ssc2 describe pkgname, date(2022-01-07) for more information on pkgname)
+
+. ssc2 type reghdfe.pkg, date(2022-01-07)
+d 'REGHDFE': module to perform linear or instrumental-variable regression absorbing any numb
+> er of high-dimensional fixed effects
+d
+d  reghdfe fits a linear or instrumental-variable regression
+d absorbing an arbitrary number of categorical factors and
+d factorial interactions Optionally, it saves the estimated fixed
+d effects. 
+d
+d KW: regression
+d KW: instrumental variables
+d KW: fixed effects
+d KW: high dimension fixed effects
+d
+d Requires: Stata version 11.2
+d
+d Distribution-Date: 20191118
+d
+d Author: Sergio Correia, Board of Governors of the Federal Reserve System
+d Support: email sergio.correia@@gmail.com
+d
+f reghdfe.ado
+f reghdfe.mata
+f reghdfe_old.ado
+f reghdfe_p.ado
+f reghdfe_old_p.ado
+f reghdfe_estat.ado
+f reghdfe_parse.ado
+f reghdfe_footnote.ado
+f reghdfe_old_estat.ado
+f reghdfe_old_footnote.ado
+f ../e/estfe.ado
+f reghdfe_header.ado
+f reghdfe_store_alphas.ado
+f reghdfe.sthlp
+f reghdfe_old.sthlp
+f reghdfe_accelerations.mata
+f reghdfe_bipartite.mata
+f reghdfe_class.mata
+f reghdfe_common.mata
+f reghdfe_constructor.mata
+f reghdfe_lsmr.mata
+f reghdfe_projections.mata
+f reghdfe_transforms.mata
+f reghdfe_mata.sthlp
+
+. cd "`c(tmpdir)'"
+C:\Users\LOB445~1\Temp
+
+. ssc2 copy reghdfe.pkg, date(2022-01-07) replace
+(file reghdfe.pkg copied to current directory)
+
+. 
+. // ---- 7. error handling ----------------------------------------------------
+. capture noisily ssc2 install reghdfe, date(2099-01-01)
+option date(2099-01-01): date is in the future
+
+. assert _rc==198                          // future date
+
+. capture noisily ssc2 install reghdfe, date(not-a-date)
+option date(not-a-date): invalid date
+  specify a date as YYYY-MM-DD, or date(latest)
+
+. assert _rc==198                          // malformed date
+
+. capture noisily ssc2 install reghdfe, date(2021-12-22)
+could not read the package index at
+    https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2021-12-22/fmwww.bc.
+> edu/repec/bocode/r
+  the mirror has no snapshot dated 2021-12-22
+  (see the snapshot list and ERRATA for known gaps)
+
+. assert _rc!=0                            // known missing snapshot (workflow gap)
+
+. capture noisily ssc2 install thispackagedoesnotexist, date(2022-01-07)
+ssc2 install: "thispackagedoesnotexist" not found in snapshot 2022-01-07
+  at https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror/2022-01-07/fmwww.bc
+> .edu/repec/bocode/
+(To find all packages in this snapshot that start with t, type ssc2 describe t, date(2022-01
+> -07))
+
+. assert _rc!=0                            // snapshot exists, package does not
+
+. capture noisily ssc2 badsubcommand
+ssc2 badsubcommand: invalid subcommand
+
+. assert _rc==198
+
+. capture noisily ssc2 versions reghdfe
+ssc2 versions is not yet implemented.
+It will list the versions of a package available across snapshots.
+Meanwhile, browse the snapshot list.
+
+. assert _rc==198                          // documented as not yet implemented
+
+. 
+. di as result "ALL TESTS PASSED"
+ALL TESTS PASSED
 
 . 
 . // system used for testing
-. 
-. 
 . di "=== SYSTEM DIAGNOSTICS ==="
 === SYSTEM DIAGNOSTICS ===
 
 . creturn list
 
 System values
--------------
 
-    ---------------------------------------------------------------------------
-        c(current_date) = "29 Jan 2023"
-        c(current_time) = "22:51:03"
+    ----------------------------------------------------------------------------------------
+        c(current_date) = "29 Jul 2026"
+        c(current_time) = "15:13:06"
            c(rmsg_time) = 0                          (seconds, from set rmsg)
-    ---------------------------------------------------------------------------
-       c(stata_version) = 17
-             c(version) = 17                         (version)
-         c(userversion) = 17                         (version)
+    ----------------------------------------------------------------------------------------
+          c(stata_name) = "StataNow"
+       c(stata_version) = 19.5
+             c(version) = 14                         (version)
+         c(userversion) = 14                         (version)
       c(dyndoc_version) = 2                          (dyndoc)
-    ---------------------------------------------------------------------------
-           c(born_date) = "19 Jul 2022"
+    ----------------------------------------------------------------------------------------
+           c(born_date) = "28 Jan 2026"
              c(edition) = "BE"
         c(edition_real) = "MP"
                  c(bit) = 64
                   c(SE) = 1
                   c(MP) = 1
-          c(processors) = 24                         (Stata/MP, set processors)
-      c(processors_lic) = 32
-     c(processors_mach) = 24
-      c(processors_max) = 24
-                c(mode) = "batch"
-             c(console) = "console"
-    ---------------------------------------------------------------------------
-                  c(os) = "Unix"
-               c(osdtl) = ""
-            c(hostname) = "1c3682747d0d"
+          c(processors) = 4                          (Stata/MP, set processors)
+      c(processors_lic) = 4
+     c(processors_mach) = 16
+      c(processors_max) = 4
+       c(kmp_blocktime) = 0                          (set kmp_blocktime)
+                c(mode) = ""
+             c(console) = ""
+    ----------------------------------------------------------------------------------------
+                  c(os) = "Windows"
+               c(osdtl) = "64-bit"
+            c(hostname) = "RS-CCSSlv39-26"
         c(machine_type) = "PC (64-bit x86-64)"
            c(byteorder) = "lohi"
-            c(username) = "statauser"
-    ---------------------------------------------------------------------------
+            c(username) = "itj5"
+    ----------------------------------------------------------------------------------------
 
 Directories and paths
----------------------
 
-    ---------------------------------------------------------------------------
-        c(sysdir_stata) = "/usr/local/stata/"        (sysdir)
-         c(sysdir_base) = "/usr/local/stata/.."      (sysdir)
-         c(sysdir_site) = "/usr/local/ado/"          (sysdir)
-         c(sysdir_plus) = "~/ado/plus/"              (sysdir)
-     c(sysdir_personal) = "~/ado/personal/"          (sysdir)
-     c(sysdir_oldplace) = "~/ado/"                   (sysdir)
-              c(tmpdir) = "/tmp"
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
+        c(sysdir_stata) = "C:\Program Files\.."      (sysdir)
+         c(sysdir_base) = "C:\Program Files\.."      (sysdir)
+         c(sysdir_site) = "C:\Program Files\.."      (sysdir)
+         c(sysdir_plus) = "C:\Users\itj5\ado.."      (sysdir)
+     c(sysdir_personal) = "C:\Users\itj5\ado.."      (sysdir)
+     c(sysdir_oldplace) = "c:\ado/"                  (sysdir)
+              c(tmpdir) = "C:\Users\LOB445~1.."
+    ----------------------------------------------------------------------------------------
              c(adopath) = "BASE;SITE;.;PERSO.."      (adopath)
-                 c(pwd) = "/project"                 (cd)
+                 c(pwd) = "C:\Users\LOB445~1.."      (cd)
               c(dirsep) = "/"
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 System limits
--------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
         c(max_N_theory) = 1099511627775
         c(max_k_theory) = 5000                       (set maxvar)
     c(max_width_theory) = 1048576                    (set maxvar)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
+         c(max_matsize) = 11000
+         c(min_matsize) = 10
           c(max_matdim) = 65534
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
         c(max_it_cvars) = 64
         c(max_it_fvars) = 8
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
         c(max_macrolen) = 15480200
             c(macrolen) = 645200                     (set maxvar)
              c(charlen) = 67783
@@ -166,39 +1035,37 @@ System limits
          c(namelenbyte) = 128
          c(namelenchar) = 32
                c(eqlen) = 1337
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 Numerical and string limits
----------------------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
            c(mindouble) = -8.9884656743e+307
            c(maxdouble) = 8.9884656743e+307
            c(epsdouble) = 2.22044604925e-16
       c(smallestdouble) = 2.2250738585e-308
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
             c(minfloat) = -1.70141173319e+38
             c(maxfloat) = 1.70141173319e+38
             c(epsfloat) = 1.19209289551e-07
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
              c(minlong) = -2147483647
              c(maxlong) = 2147483620
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
               c(minint) = -32767
               c(maxint) = 32740
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
              c(minbyte) = -127
              c(maxbyte) = 100
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
         c(maxstrvarlen) = 2045
        c(maxstrlvarlen) = 2000000000
         c(maxvlabellen) = 32000
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 Current dataset
----------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
                c(frame) = "default"
                    c(N) = 0
                    c(k) = 0
@@ -206,39 +1073,39 @@ Current dataset
              c(changed) = 0
             c(filename) = ""
             c(filedate) = ""
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 Memory settings
----------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
               c(memory) = 33554432
               c(maxvar) = 5000                       (set maxvar)
-            c(niceness) = 5                          (set min_memory)
+             c(matsize) = 400                        (set matsize)
+            c(niceness) = 5                          (set niceness)
           c(min_memory) = 0                          (set min_memory)
           c(max_memory) = .                          (set max_memory)
          c(segmentsize) = 33554432                   (set segmentsize)
              c(adosize) = 1000                       (set adosize)
      c(max_preservemem) = 1073741824                 (set max_preservemem)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 Output settings
----------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
                 c(more) = "off"                      (set more)
                 c(rmsg) = "off"                      (set rmsg)
                   c(dp) = "period"                   (set dp)
-            c(linesize) = 79                         (set linesize)
-            c(pagesize) = 23                         (set pagesize)
+            c(linesize) = 92                         (set linesize)
+            c(pagesize) = 13                         (set pagesize)
              c(logtype) = "smcl"                     (set logtype)
+              c(logmsg) = "on"                       (set logmsg)
              c(noisily) = 1
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
              c(iterlog) = "on"                       (set iterlog)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
                c(level) = 95                         (set level)
               c(clevel) = 95                         (set clevel)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
       c(showbaselevels) = ""                         (set showbaselevels)
       c(showemptycells) = ""                         (set showemptycells)
          c(showomitted) = ""                         (set showomitted)
@@ -246,57 +1113,75 @@ Output settings
               c(fvwrap) = 1                          (set fvwrap)
             c(fvwrapon) = "word"                     (set fvwrapon)
             c(lstretch) = ""                         (set lstretch)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
              c(cformat) = ""                         (set cformat)
              c(sformat) = ""                         (set sformat)
              c(pformat) = ""                         (set pformat)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
       c(coeftabresults) = "on"                       (set coeftabresults)
                 c(dots) = "on"                       (set dots)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
        c(collect_label) = "default"                  (set collect_label)
        c(collect_style) = "default"                  (set collect_style)
          c(table_style) = "table"                    (set table_style)
         c(etable_style) = "etable"                   (set etable_style)
+        c(dtable_style) = "dtable"                   (set dtable_style)
+      c(tabulate_style) = "tabulate"                 (set tabulate_style)
+      c(tabulate_comps) = "tabulate_composites"      (set tabulate_style)
+       c(svy_tab_comps) = "svy_tabulate_comp.."      (set tabulate_style)
         c(collect_warn) = "on"                       (set collect_warn)
+    ----------------------------------------------------------------------------------------
 
 Interface settings
-------------------
 
-    ---------------------------------------------------------------------------
-             c(linegap) = .                          (set linegap)
-       c(scrollbufsize) = .                          (set scrollbufsize)
+    ----------------------------------------------------------------------------------------
+            c(dockable) = "on"                       (set dockable)
+       c(locksplitters) = "off"                      (set locksplitters)
+            c(pinnable) = "on"                       (set pinnable)
+       c(taskbargroups) = "on"                       (set taskbargroups)
+        c(doublebuffer) = "on"                       (set doublebuffer)
+          c(reventries) = 5000                       (set reventries)
+          c(fastscroll) = "on"                       (set fastscroll)
+             c(linegap) = 1                          (set linegap)
+       c(scrollbufsize) = 200000                     (set scrollbufsize)
                c(maxdb) = 50                         (set maxdb)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 Graphics settings
------------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
             c(graphics) = "on"                       (set graphics)
-              c(scheme) = "s2color"                  (set scheme)
+       c(autotabgraphs) = "on"                       (set autotabgraphs)
+              c(scheme) = "stcolor"                  (set scheme)
           c(printcolor) = "asis"                     (set printcolor)
+           c(copycolor) = "asis"                     (set copycolor)
        c(min_graphsize) = 1                          (region_options)
        c(max_graphsize) = 100                        (region_options)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 Network settings
-----------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
            c(httpproxy) = "off"                      (set httpproxy)
        c(httpproxyhost) = ""                         (set httpproxyhost)
-       c(httpproxyport) = 80                         (set httpproxyport)
-    ---------------------------------------------------------------------------
+       c(httpproxyport) = 8080                       (set httpproxyport)
+    ----------------------------------------------------------------------------------------
        c(httpproxyauth) = "off"                      (set httpproxyauth)
        c(httpproxyuser) = ""                         (set httpproxyuser)
          c(httpproxypw) = ""                         (set httpproxypw)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
+
+Update settings
+
+    ----------------------------------------------------------------------------------------
+        c(update_query) = "off"                      (set update_query)
+     c(update_interval) = 7                          (set update_interval)
+       c(update_prompt) = "on"                       (set update_prompt)
+    ----------------------------------------------------------------------------------------
 
 Trace (program debugging) settings
-----------------------------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
                c(trace) = "off"                      (set trace)
           c(tracedepth) = 32000                      (set tracedepth)
             c(tracesep) = "on"                       (set tracesep)
@@ -304,104 +1189,104 @@ Trace (program debugging) settings
          c(traceexpand) = "on"                       (set traceexpand)
          c(tracenumber) = "off"                      (set tracenumber)
          c(tracehilite) = ""                         (set tracehilite)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 Mata settings
--------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
           c(matastrict) = "off"                      (set matastrict)
             c(matalnum) = "off"                      (set matalnum)
         c(mataoptimize) = "on"                       (set mataoptimize)
            c(matafavor) = "space"                    (set matafavor)
            c(matacache) = 2000                       (set matacache)
-            c(matalibs) = "lmatabase;lmataop.."      (set matalibs)
+            c(matalibs) = "lmatabase;lmataad.."      (set matalibs)
          c(matamofirst) = "off"                      (set matamofirst)
         c(matasolvetol) = .                          (set matasolvetol)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 Java settings
--------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
         c(java_heapmax) = "4096m"                    (set java_heapmax)
-           c(java_home) = "/usr/local/stata/.."      (set java_home)
-    ---------------------------------------------------------------------------
+           c(java_home) = "C:\Program Files\.."      (set java_home)
+    ----------------------------------------------------------------------------------------
 
 LAPACK settings
----------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
           c(lapack_mkl) = "on"                       (set lapack_mkl)
-      c(lapack_mkl_cnr) = "default"                  (set lapack_mkl_cnr)
-    ---------------------------------------------------------------------------
+      c(lapack_mkl_cnr) = "C:\Program Files\.."      (set lapack_mkl_cnr)
+    ----------------------------------------------------------------------------------------
 
 putdocx settings
-----------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
       c(docx_hardbreak) = "off"                      (set docx_hardbreak)
        c(docx_paramode) = "off"                      (set docx_paramode)
-    ---------------------------------------------------------------------------
+       c(docx_maxtable) = 500                        (set docx_maxtable)
+    ----------------------------------------------------------------------------------------
+
+putpdf settings
+
+    ----------------------------------------------------------------------------------------
+        c(pdf_maxtable) = 500                        (set pdf_maxtable)
+    ----------------------------------------------------------------------------------------
 
 Python settings
----------------
 
-    ---------------------------------------------------------------------------
-         c(python_exec) = ""                         (set python_exec)
+    ----------------------------------------------------------------------------------------
+         c(python_exec) = "C:\Program Files\.."      (set python_exec)
      c(python_userpath) = ""                         (set python_userpath)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 RNG settings
-------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
                  c(rng) = "default"                  (set rng)
          c(rng_current) = "mt64"
             c(rngstate) = "XAA00000000000000.."      (set rngstate)
        c(rngseed_mt64s) = 123456789
            c(rngstream) = 1                          (set rngstream)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 sort settings
--------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
           c(sortmethod) = "default"                  (set sortmethod)
-        c(sort_current) = "fsort"
-        c(sortrngstate) = "1001XZA112210f4b1.."      (set sortrngstate)
-    ---------------------------------------------------------------------------
+        c(sort_current) = "qsort"
+        c(sortrngstate) = "305084201XZA11221.."      (set sortrngstate)
+    ----------------------------------------------------------------------------------------
 
 Unicode settings
-----------------
 
-    ---------------------------------------------------------------------------
-           c(locale_ui) = ""                         (set locale_ui)
+    ----------------------------------------------------------------------------------------
+           c(locale_ui) = "en_US"                    (set locale_ui)
     c(locale_functions) = "en_US"                    (set locale_functions)
       c(locale_icudflt) = "en_US"                    (unicode locale)
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
 
 Other settings
---------------
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
                 c(type) = "float"                    (set type)
-             c(maxiter) = 300                        (set maxiter)
+             c(maxiter) = 16000                      (set maxiter)
        c(searchdefault) = "all"                      (set searchdefault)
            c(varabbrev) = "on"                       (set varabbrev)
           c(emptycells) = "keep"                     (set emptycells)
-             c(fvtrack) = "term"                     (set fvtrack)
+             c(fvtrack) = "factor"                   (set fvtrack)
               c(fvbase) = "on"                       (set fvbase)
-             c(odbcmgr) = "iodbc"                    (set odbcmgr)
           c(odbcdriver) = "unicode"                  (set odbcdriver)
+            c(haverdir) = ""                         (set haverdir)
              c(fredkey) = ""                         (set fredkey)
       c(collect_double) = "on"                       (set collect_double)
-    ---------------------------------------------------------------------------
+       c(dtascomplevel) = 1                          (set dtascomplevel)
+       c(reshape_favor) = "memory"                   (set reshape_favor)
+        c(doeditbackup) = "on"                       (set doeditbackup)
+    ----------------------------------------------------------------------------------------
 
-Other
------
+Other system values
 
-    ---------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------
                   c(pi) = 3.141592653589793
                c(alpha) = "a b c d e f g h i.."
                c(ALPHA) = "A B C D E F G H I.."
@@ -409,82 +1294,100 @@ Other
               c(Months) = "January February .."
                c(Wdays) = "Sun Mon Tue Wed T.."
             c(Weekdays) = "Sunday Monday Tue.."
-                  c(rc) = 0                          (capture)
-    ---------------------------------------------------------------------------
+               c(obs_t) = "byte"
+                  c(rc) = 198                        (capture)
+    ----------------------------------------------------------------------------------------
 
 . query
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
     Memory settings
       set maxvar           5000       2048-120000; max. vars allowed
+      set matsize          400        10-11000; max. # vars in models
       set niceness         5          0-10
       set min_memory       0          0-1600g
       set max_memory       .          32m-1600g or .
       set segmentsize      32m        1m-32g
       set adosize          1000       kilobytes
       set max_preservemem  1g         0-1600g
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
     Output settings
       set more             off
       set rmsg             off
       set dp               period     may be period or comma
-      set linesize         79         characters
-      set pagesize         23         lines
-      -------------------------------------------------------------------------
+      set linesize         92         characters
+      set pagesize         13         lines
+      --------------------------------------------------------------------------------------
       set iterlog          on
-      -------------------------------------------------------------------------
+      --------------------------------------------------------------------------------------
       set level            95         percent confidence intervals
       set clevel           95         percent credible intervals
-      -------------------------------------------------------------------------
+      --------------------------------------------------------------------------------------
       set showbaselevels              may be empty, off, on, or all
       set showemptycells              may be empty, off, or on
       set showomitted                 may be empty, off, or on
       set fvlabel          on
       set fvwrap           1          
       set fvwrapon         word       may be word or width
-      -------------------------------------------------------------------------
+      --------------------------------------------------------------------------------------
       set lstretch                    may be empty, off, or on
-      -------------------------------------------------------------------------
+      --------------------------------------------------------------------------------------
       set cformat                     may be empty or a numerical format
       set pformat                     may be empty or a numerical format
       set sformat                     may be empty or a numerical format
-      -------------------------------------------------------------------------
+      --------------------------------------------------------------------------------------
       set coeftabresults   on
       set dots             on
-      -------------------------------------------------------------------------
+      --------------------------------------------------------------------------------------
       set logtype          smcl       may be smcl or text
-      -------------------------------------------------------------------------
+      set logmsg           on
+      --------------------------------------------------------------------------------------
       set collect_label    default
       set collect_style    default
       set table_style      table
       set etable_style     etable
+      set dtable_style     dtable
+      set tabulate_style   tabulate
+      set tabulate_comps   tabulate_composites
+      set svy_tab_comps    svy_tabulate_composites
       set collect_warn     on
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
     Interface settings
-      set linegap                     (not relevant)
-      set scrollbufsize               (not relevant)
-      -------------------------------------------------------------------------
-      set maxdb                       (not relevant)
--------------------------------------------------------------------------------
+      set dockable         on
+      set floatwindows     off
+      set locksplitters    off
+      set pinnable         on
+      set taskbargroups    on
+      set doublebuffer     on
+      --------------------------------------------------------------------------------------
+      set linegap          1          pixels
+      set scrollbufsize    200000     characters
+      set fastscroll       on
+      set reventries       5000       lines
+      --------------------------------------------------------------------------------------
+      set maxdb            50         dialog boxes
+--------------------------------------------------------------------------------------------
     Graphics settings
       set graphics         on
-      set scheme           s2color
+      set autotabgraphs    on
+      set scheme           stcolor
       set printcolor       asis       may be automatic, asis, gs1, gs2, gs3
--------------------------------------------------------------------------------
+      set copycolor        asis       may be automatic, asis, gs1, gs2, gs3
+--------------------------------------------------------------------------------------------
     Network settings
       set httpproxy        off
       set httpproxyhost    
-      set httpproxyport    80
-      -------------------------------------------------------------------------
+      set httpproxyport    8080
+      --------------------------------------------------------------------------------------
       set httpproxyauth    off
       set httpproxyuser    
       set httpproxypw      
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
     Update settings
-      set update_query                (not relevant)
-      set update_interval             (not relevant)
-      set update_prompt               (not relevant)
--------------------------------------------------------------------------------
+      set update_query     off
+      set update_interval  7
+      set update_prompt    on
+--------------------------------------------------------------------------------------------
     Trace (programming debugging) settings
       set trace            off
       set tracedepth       32000
@@ -493,69 +1396,84 @@ Other
       set traceindent      on
       set tracenumber      off
       set tracehilite      
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
     Mata settings
       set matastrict       off
       set matalnum         off
       set mataoptimize     on
       set matafavor        space      may be space or speed
       set matacache        2000       kilobytes
-      set matalibs         lmatabase;lmataopt;lmatamcmc;lmataado;lmatasvy;lmata
-> mixlog;lmatasp;lmatameta;lmatapath;lmatafc;lmatalasso;lmatanumlib;lmatatab;lm
-> atasem;lmatacollect;lmataerm;lmatapostest;lmatami;lmatapss;lmatagsem;lmatabma
-> ;lcmp
+      set matalibs         lmatabase;lmataado;lmatabma;lmatacate;lmatacollect;lmatadata;lmat
+> aerm;lmatafc;lmatagsem;lmatah2o;lmatahetdid;lmataivqreg;lmatajm;lmatalasso;lmatamcmc;lmata
+> meta;lmatami;lmatamixlog;lmatanumlib;lmataopt;lmatapath;lmatapostest;lmatapss;lmatarw;lmat
+> asem;lmatasp;lmatasubexpr;lmatasvy;lmatatab;lmatats;lbinsreg;lcolrspace;lddml;lgtools;livr
+> eg2;lmoremata;lmoremata10;lmoremata11;lmoremata14
       set matamofirst      off
-      set matasolvetol     .          may be . or any double precision number
--------------------------------------------------------------------------------
+      set matasolvetol     .          may be . or any double-precision number
+--------------------------------------------------------------------------------------------
     Java settings
       set java_heapmax     4096m
-      set java_home        /usr/local/stata/utilities/java/linux-x64/zulu-jdk17
-> .0.3/
--------------------------------------------------------------------------------
+      set java_home        C:\Program Files\StataNow19\utilities\java\windows-x64\zulu-jdk21
+> .0.9\
+--------------------------------------------------------------------------------------------
     LAPACK settings
       set lapack_mkl       on
       set lapack_mkl_cnr   default
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
     putdocx settings
       set docx_hardbreak   off
       set docx_paramode    off
--------------------------------------------------------------------------------
+      set docx_maxtable    500        1-10000
+--------------------------------------------------------------------------------------------
+    putpdf settings
+      set pdf_maxtable     500        1-10000
+--------------------------------------------------------------------------------------------
     Python settings
-      set python_exec      
+      set python_exec      C:\Program Files\Python311\python.exe
       set python_userpath  
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
     RNG settings
       set rng              default    may be default, mt64, mt64s, or kiss32
       set rngstate         XAA00000000000000000000000000000000000000...
       set rngstream        1          rng stream number
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
     sort settings
       set sortmethod       default    may be default, fsort, or qsort
-                           fsort      current sort method
-      set sortrngstate     1001XZA112210f4b16c1cb10507a1f38cb440c400...
--------------------------------------------------------------------------------
+                           qsort      current sort method
+      set sortrngstate     305084201XZA112210f4b16c1cb10507a1f38cb44...
+--------------------------------------------------------------------------------------------
     Unicode settings
-      set locale_ui        
+      set locale_ui        en_US
       set locale_functions en_US
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
     Other settings
       set type             float      may be float or double
-      set maxiter          300        max iterations for estimation commands
+      set maxiter          16000      max iterations for estimation commands
       set searchdefault    all        may be local, net, or all
       set varabbrev        on
       set emptycells       keep       may be keep or drop
-      set fvtrack          term       may be term or factor
+      set fvtrack          factor     may be term or factor
       set fvbase           on
-      set processors       24         1-24
-      set odbcmgr          iodbc      may be iodbc or unixodbc
+      set processors       4          1-4
+      set kmp_blocktime    0          time duration in milliseconds
       set odbcdriver       unicode    may be unicode, ansi, or default
+      set haverdir         
       set fredkey          
       set collect_double   on
--------------------------------------------------------------------------------
+      set dtascomplevel    1          dtas default compression level; 0-9
+      set reshape_favor    default    may be default, memory, or speed
+      set doeditbackup     on
+--------------------------------------------------------------------------------------------
 
 . di "=========================="
 ==========================
 
 . 
-. 
 end of do-file
+
+. log close _all
+      name:  <unnamed>
+       log:  C:\Users\itj5\OneDrive - Cornell University\AEAWorkspace\stata-ssc2\test.log
+  log type:  text
+ closed on:  29 Jul 2026, 15:13:17
+--------------------------------------------------------------------------------------------

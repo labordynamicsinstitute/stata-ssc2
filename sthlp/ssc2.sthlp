@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.2.14  09oct2020}{...}
+{* *! version 2.0.0-draft  08jul2026}{...}
 {vieweralsosee "[R] ssc2" "mansection R ssc2"}{...}
 {vieweralsosee "" "--"}{...}
 {vieweralsosee "[R] ssc" "help ado update"}{...}
@@ -13,7 +13,7 @@
 {viewerjumpto "Remarks" "ssc2##remarks"}{...}
 {viewerjumpto "Examples" "ssc2##examples"}{...}
 {p2colset 1 12 14 2}{...}
-{p2col:{bf:[R] ssc2} {hline 2}}Install and uninstall packages from SSC mirror{p_end}
+{p2col:{bf:ssc2} {hline 2}}Install and uninstall packages from SSC, including from date-based snapshots of an SSC mirror{p_end}
 {p2colreset}{...}
 
 
@@ -30,7 +30,9 @@ Describe a specified package at SSC mirror
 {opt d:escribe}
 {c -(} {it:pkgname} | {it:letter} {c )-}
 [{cmd:,}
-{cmd:saving(}{it:{help filename}}[{cmd:, replace}]{cmd:)}]
+{cmd:saving(}{it:{help filename}}[{cmd:, replace}]{cmd:)}
+{opt date(datespec)}
+{opt from(url)}]
 
 
 
@@ -43,7 +45,11 @@ Install a specified package from SSC mirror
 {it:pkgname}
 [{cmd:,}
 {opt all}
-{opt replace}]
+{opt replace}
+{opt update}
+{opt replaceall}
+{opt date(datespec)}
+{opt from(url)}]
 
 
 
@@ -55,7 +61,9 @@ Type a specific file stored at SSC mirror
 {cmd:ssc2}
 {opt type}
 {it:{help filename}}
-[{cmd:, asis}]
+[{cmd:, asis}
+{opt date(datespec)}
+{opt from(url)}]
 
 
 {phang}
@@ -70,11 +78,15 @@ Copy a specific file from SSC mirror to your computer
 {opt p:ersonal}
 {opt replace}
 {opt pub:lic}
-{opt bin:ary}]
+{opt bin:ary}
+{opt date(datespec)}
+{opt from(url)}]
 
 
 {p 4 6 2}
-where {it:letter} in {opt ssc2 describe} is {opt a}-{opt z} or {opt _}.
+where {it:letter} in {opt ssc2 describe} is {opt a}-{opt z} or {opt _},
+and {it:datespec} is a date in {bf:YYYY-MM-DD} format or the word
+{bf:latest}.
 
 
 {marker description}{...}
@@ -82,7 +94,23 @@ where {it:letter} in {opt ssc2 describe} is {opt a}-{opt z} or {opt _}.
 
 {pstd}
 {opt ssc2} works with packages (and files) from the Statistical Software
-Components (ssc2) Archive, as mirrored.
+Components (SSC) archive.  It extends the official {helpb ssc} command with
+the ability to install packages {it:as they existed on a given date}, using
+date-based snapshots of the SSC archive stored in the
+{browse "https://github.com/labordynamicsinstitute/ssc-mirror":ssc-mirror}
+repository.  This supports reproducibility: an analysis can be re-run with
+the exact package versions that were current at a given date.
+
+{pstd}
+When neither {opt date()} nor {opt from()} is specified, {opt ssc2}
+delegates to the official {helpb ssc} command, so {cmd:ssc2} behaves as a
+strict superset of {cmd:ssc}.  The subcommands {cmd:new}, {cmd:hot}, and
+{cmd:uninstall} are always delegated to {helpb ssc}.
+
+{pstd}
+Daily snapshots exist from {bf:2021-12-21} onward; three earlier snapshots
+exist ({bf:2017-08-10}, {bf:2021-04-15}, {bf:2021-08-10}).  Type
+{cmd:ssc2 snapshots} for details.
 
 
 {pstd}
@@ -166,6 +194,37 @@ The above sections are not included in this help file.
      packages are listed.
 
 
+{marker options_snapshot}{...}
+{title:Options for selecting a snapshot (describe, install, type, copy)}
+
+{phang}
+{opt date(datespec)} selects the snapshot of the SSC archive as of the
+    specified date.  {it:datespec} is either a date in {bf:YYYY-MM-DD}
+    format (for example, {cmd:date(2022-01-07)}) or {bf:latest}, which uses
+    the most recently mirrored state of the archive.  With
+    {cmd:ssc2 install}, how an already-installed copy of the same package
+    is handled is governed by {opt replace}, {opt update}, and
+    {opt replaceall}; see
+    {help ssc2##options_ssc2_install:Options for use with ssc2 install}.  If no snapshot exists
+    for the specified date, an error message points to the
+    {browse "https://github.com/labordynamicsinstitute/ssc-mirror/tags":list of available snapshot dates}.
+
+{phang}
+{opt from(url)} specifies the base URL of the snapshot mirror.
+    If {opt from()} is not specified, the URL is taken from the Stata
+    global {cmd:SSC2_MIRROR} if that is set; otherwise from the
+    environment variable {cmd:SSC2_MIRROR} if that is set; otherwise the
+    built-in default
+    {cmd:https://raw.githubusercontent.com/labordynamicsinstitute/ssc-mirror}
+    is used.  The overrides exist because the mirror may move to a
+    different host; they also let you point at your own clone, which must
+    use the same layout
+    ({it:url}{cmd:/}{it:ref}{cmd:/fmwww.bc.edu/repec/bocode/}).
+    The analogous {cmd:SSC2_MIRROR_API} global or environment variable
+    overrides the API endpoint used only for diagnosing failed snapshot
+    lookups.
+
+
 {marker option_ssc2_describe}{...}
 {title:Option for use with ssc2 describe}
 
@@ -215,6 +274,40 @@ The above sections are not included in this help file.
     there is a problem.  If there is a problem, it is usually better to
     uninstall the old package by using {opt ssc2 uninstall} or
     {opt ado uninstall} (which are, in fact, the same command).
+
+
+{pstd}
+When a snapshot is requested with {opt date()} or {opt from()},
+{cmd:ssc2 install} compares the requested snapshot with any installed
+copy of the same package, using the snapshot date recorded in the
+installed copy's source; a copy installed from SSC directly carries no
+snapshot date and cannot be compared.  The behavior is then:
+without any of the options below, an existing installation is refused,
+as with official {cmd:ssc};
+{opt replace} reinstalls the {it:same} snapshot only;
+{opt update} moves to a {it:newer} snapshot only (an older snapshot is
+a no-op);
+{opt replaceall} replaces {it:any} installed version, downgrades
+included.  Because repeated dated installs would otherwise accumulate
+multiple tracker entries (each snapshot is a distinct source URL),
+all three options remove the superseded copies before installing.
+Without {opt date()} or {opt from()}, {cmd:ssc2 install} delegates to
+official {cmd:ssc}; if {opt replace} is specified and a
+snapshot-installed copy of the package exists, that copy is retired
+first (official {opt replace} means replacing whatever is installed,
+and retiring the snapshot entry keeps the package singly tracked).
+
+{phang}
+{opt update} (only with {opt date()} or {opt from()}) installs the
+    requested snapshot only if it is newer than every installed copy of
+    the package.  If the installed copy is the same age or newer,
+    nothing is done.
+
+{phang}
+{opt replaceall} (only with {opt date()} or {opt from()}) replaces any
+    installed version of the package without comparing versions; this is
+    the option to use for downgrading, and the only applicable one with
+    {cmd:date(latest)}.
 
 
 {marker option_ssc2_type}{...}
