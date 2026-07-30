@@ -1,4 +1,4 @@
-*! version 2.2.1-draft 29jul2026  L. Vilhuber and contributors
+*! version @VERSION@ @DATE_STATA@  L. Vilhuber and contributors
 *! Install Stata packages from date-based snapshots of the SSC archive,
 *! mirrored at https://github.com/labordynamicsinstitute/ssc-mirror
 *!

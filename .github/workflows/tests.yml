@@ -1,0 +1,30 @@
+# Unit tests for the release tooling in tools/.
+#
+# Standard library only -- no dependency installation step -- matching
+# the rest of this repository's Python.
+
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # tests/test_sources.py inspects the working tree; the release
+          # tooling reads tags. Fetch everything so both behave the same
+          # in CI as they do locally.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run unit tests
+        run: python3 -m unittest discover -s tests -v

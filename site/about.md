@@ -36,12 +36,20 @@ three earlier snapshots exist (2017-08-10, 2021-04-15, 2021-08-10).
 
 ## Installation
 
-```stata
-* Install directly from GitHub
-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/main")
+Released versions live on the `dist` branch and are tagged. The `latest`
+tag always points at the newest stable release, never at a pre-release.
 
-* Or a specific release, e.g. v1.0.0
-net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/v1.0.0/")
+```stata
+* The current stable release
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/latest/")
+```
+
+To pin an exact version in a replication package, use the release tag
+instead of `latest`:
+
+```stata
+* A specific release
+net install ssc2, all replace from("https://raw.githubusercontent.com/labordynamicsinstitute/stata-ssc2/@VERSION_TAG@/")
 ```
 
 ## Quick example

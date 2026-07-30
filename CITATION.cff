@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "ssc2: Install Stata packages from date-based snapshots of the SSC archive"
+version: 2.2.2
+date-released: 2026-07-30
+license: MIT
+repository-code: "https://github.com/labordynamicsinstitute/stata-ssc2"
+abstract: >-
+  ssc2 is a drop-in replacement for the system-provided Stata ssc command.
+  It adds a date() option to install packages as of a given date using
+  date-based snapshots of the SSC archive, supporting reproducible research.
+authors:
+  - family-names: Vilhuber
+    given-names: Lars
+    affiliation: "Labor Dynamics Institute, Cornell University"
+  - family-names: Joyce
+    given-names: Ian
+    affiliation: "University of Notre Dame"
+keywords:
+  - stata
+  - reproducibility
+  - snapshot
+  - SSC
