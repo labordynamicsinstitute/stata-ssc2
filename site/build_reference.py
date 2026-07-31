@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 build_reference.py -- translate a Stata help file (SMCL) into the site's
-Reference page.
+Reference page, as Jekyll-flavoured Markdown.
 
-Usage:  python3 site/build_reference.py sthlp/ssc2.sthlp site/reference.html
+Usage:  python3 site/build_reference.py sthlp/ssc2.sthlp site/reference.md
 
 Best-effort converter covering the SMCL directives actually used in this
 project's help file (titles, paragraph modes, cmd/opt/it/bf inline
@@ -11,54 +11,151 @@ markup, help/browse links, p2col header, hline, markers). Unknown
 directives degrade gracefully to their inner text, so an unhandled tag
 can never break the page -- it just renders unstyled. Run by CI on every
 build so the Reference page always matches sthlp/ssc2.sthlp.
+
+Why Markdown rather than HTML: the generated page reads and diffs like
+prose, and kramdown (Jekyll's Markdown engine) covers everything SMCL
+asks for here. The two constructs Markdown has no syntax of its own for
+-- hanging-indent option paragraphs and the monospaced syntax diagrams
+-- are carried by kramdown inline attribute lists (`{: .hang}` /
+`{: .syn}`), which attach the same CSS classes the previous HTML
+emitter used, so the rendered page is unchanged.
+
+Text outside markup is escaped, because SMCL help text is full of
+characters Markdown would otherwise eat: the `[optional]` brackets of a
+syntax diagram, the `_` of `ssc2 describe _`, the `|` alternation in
+`{ pkgname | letter }`. Inline code is emitted through placeholders so
+escaping can never leak into a code span, where kramdown would render
+the backslashes literally.
 """
-import html
 import re
 import sys
 from datetime import date
 
+# Characters that would otherwise be read as Markdown syntax. Braces are
+# escaped so no fragment of help text can be mistaken for a kramdown
+# attribute list, and the pipe so a stray alternation bar cannot start a
+# table.
+ESCAPE_RE = re.compile(r'([\\`*_\[\]{}|<>])')
+
+# Each paragraph is emitted as a single line, so only its first
+# character can open an unwanted block: a heading, list item, or quote.
+LEADING_RE = re.compile(r'^([#+>-]|\d+\.)')
+
+SENTINEL = "\x00"
+
+
 # ---------------------------------------------------------------- inline
+class Spans:
+    """Holds already-converted inline fragments behind placeholders.
+
+    Escaping runs over the whole paragraph once markup conversion is
+    done, so anything already converted has to be hidden from it first.
+    """
+
+    def __init__(self):
+        self.items = []
+
+    def hold(self, markdown: str) -> str:
+        self.items.append(markdown)
+        return f"{SENTINEL}{len(self.items) - 1}{SENTINEL}"
+
+    def code(self, text: str) -> str:
+        # Delimit with more backticks than the content contains, padding
+        # when the content itself starts or ends with one. Nothing in the
+        # current help file needs this, but a later edit to the .sthlp
+        # should not be able to produce a broken code span.
+        ticks = "`" * (max((len(m) for m in re.findall(r'`+', text)), default=0) + 1)
+        pad = " " if text.startswith("`") or text.endswith("`") else ""
+        return self.hold(f"{ticks}{pad}{text}{pad}{ticks}")
+
+    def restore(self, s: str) -> str:
+        # Repeatedly, because spans nest: {it:{help filename}} holds a
+        # code span inside an emphasis span, and re.sub does not rescan
+        # what it just substituted in.
+        while SENTINEL in s:
+            s = re.sub(rf'{SENTINEL}(\d+){SENTINEL}',
+                       lambda m: self.items[int(m.group(1))], s)
+        return s
+
+
 def inline(s: str) -> str:
-    s = html.escape(s, quote=False)
-    # literal braces written as {c -(} / {c )-}
-    s = s.replace("{c -(}", "&#123;").replace("{c )-}", "&#125;")
+    sp = Spans()
+    # Literal braces, written as {c -(} / {c )-} in SMCL. Held rather
+    # than substituted in place so the unknown-directive cleanup below
+    # cannot mistake `{ pkgname }` for a directive and delete it.
+    s = s.replace("{c -(}", sp.hold("\\{")).replace("{c )-}", sp.hold("\\}"))
     # {browse "url":text} and {browse "url"}
-    s = re.sub(r'\{browse "([^"]+)":([^}]*)\}', r'<a href="\1">\2</a>', s)
-    s = re.sub(r'\{browse "([^"]+)"\}', r'<a href="\1">\1</a>', s)
+    s = re.sub(r'\{browse "([^"]+)":([^}]*)\}',
+               lambda m: sp.hold(f"[{m.group(2)}]({m.group(1)})"), s)
+    s = re.sub(r'\{browse "([^"]+)"\}', lambda m: sp.hold(f"<{m.group(1)}>"), s)
+    # {help ssc2##marker:text}: a cross-reference within this same page
+    s = re.sub(r'\{helpb? ssc2##([^}:]+):([^}]*)\}',
+               lambda m: sp.hold(f"[{m.group(2)}](#{m.group(1)})"), s)
+    # {manhelp cmd R} / {mansection R x:text} -> the manual reference in
+    # plain text; there is no Stata PDF manual to link to from the web.
+    s = re.sub(r'\{manhelp ([^} ]+) ([^}]+)\}',
+               lambda m: sp.hold(f"\\[{m.group(2)}\\] `{m.group(1)}`"), s)
     # {help x} / {helpb x} / {help x:text} -> code (no Stata help on the web)
-    s = re.sub(r'\{helpb? ([^}:]+):([^}]*)\}', r'<code>\2</code>', s)
-    s = re.sub(r'\{helpb? ([^}]+)\}', r'<code>\1</code>', s)
+    s = re.sub(r'\{helpb? [^}:]+:([^}]*)\}', lambda m: sp.code(m.group(1)), s)
+    s = re.sub(r'\{helpb? ([^}]+)\}', lambda m: sp.code(m.group(1)), s)
     # {opt d:escribe} -> describe ; {opt date(datespec)} unchanged inside code
-    s = re.sub(r'\{opt ([^}]*)\}', lambda m: f'<code>{m.group(1).replace(":","")}</code>', s)
-    s = re.sub(r'\{cmdab:([^}]*)\}', lambda m: f'<code>{m.group(1).replace(":","")}</code>', s)
-    for tag, out in (("cmd", "code"), ("bf", "b"), ("it", "i"), ("hi", "b"),
-                     ("err", "b"), ("res", "code")):
-        s = re.sub(r'\{%s:([^{}]*)\}' % tag, r'<%s>\1</%s>' % (out, out), s)
-    s = re.sub(r'\{hline (\d+)\}', lambda m: "&mdash;" * max(1, int(m.group(1)) // 2), s)
-    s = s.replace("{hline}", "<hr>")
-    s = re.sub(r'\{marker ([^}]+)\}', r'<a id="\1"></a>', s)
+    s = re.sub(r'\{opt ([^}]*)\}', lambda m: sp.code(m.group(1).replace(":", "")), s)
+    s = re.sub(r'\{cmdab:([^}]*)\}', lambda m: sp.code(m.group(1).replace(":", "")), s)
+    for tag, wrap in (("cmd", None), ("res", None), ("bf", "**"), ("hi", "**"),
+                      ("err", "**"), ("it", "*")):
+        pattern = r'\{%s:([^{}]*)\}' % tag
+        if wrap is None:
+            s = re.sub(pattern, lambda m: sp.code(m.group(1)), s)
+        else:
+            s = re.sub(pattern,
+                       lambda m, w=wrap: sp.hold(f"{w}{m.group(1)}{w}")
+                       if m.group(1).strip() else m.group(1), s)
+    s = re.sub(r'\{hline (\d+)\}', lambda m: "—" * max(1, int(m.group(1)) // 2), s)
+    s = s.replace("{hline}", sp.hold("\n\n---\n"))
+    s = re.sub(r'\{marker [^}]+\}', '', s)
     s = re.sub(r'\{p_end\}', '', s)
     s = re.sub(r'\{\.\.\.\}', '', s)
     # anything still unknown: keep inner text after any colon
     for _ in range(3):
         s = re.sub(r'\{[a-zA-Z0-9_* ]+:([^{}]*)\}', r'\1', s)
         s = re.sub(r'\{[a-zA-Z0-9_* .]*\}', '', s)
-    return s
+    s = ESCAPE_RE.sub(r'\\\1', s).strip()
+    return sp.restore(LEADING_RE.sub(r'\\\1', s))
+
+
+def plain(s: str) -> str:
+    """inline() with the Markdown taken back out.
+
+    Used for the one-line description, which is quoted inside running
+    prose rather than emitted as a block of its own.
+    """
+    return re.sub(r'[`*]', '', re.sub(r'\\(.)', r'\1', inline(s))).strip()
 
 
 # ------------------------------------------------------------- structure
 SKIP_SECTIONS = {"Description"}   # covered by the About page
 
+# Paragraph mode -> kramdown inline attribute list. `hang` is the
+# hanging indent used for option descriptions, `syn` the monospaced
+# syntax diagram; both classes live in _sass/custom/custom.scss.
+IAL = {"phang": "{: .hang}", "syn": "{: .syn}"}
+
+
 def convert(smcl: str) -> str:
     out, para, mode = [], [], None
     convert.description = ""
+    marker = None                          # anchors the next {title:}
 
     def flush():
         nonlocal para, mode
-        text = inline(" ".join(para).strip())
+        # SMCL indents continuation lines; the indentation is layout for
+        # the Stata viewer, so it collapses away here.
+        text = inline(re.sub(r'\s+', ' ', " ".join(para)).strip())
         if text:
-            css = {"phang": "hang", "syn": "syn"}.get(mode, "")
-            out.append(f'<p class="{css}">{text}</p>' if css else f"<p>{text}</p>")
+            out.append(text)
+            if mode in IAL:
+                out.append(IAL[mode])
+            out.append("")
         para, mode = [], None
 
     skipping = False                       # inside a suppressed section?
@@ -69,11 +166,16 @@ def convert(smcl: str) -> str:
         # help-viewer navigation: meaningless on the web, drop entirely
         if line.lstrip().startswith(("{vieweralsosee", "{viewerjumpto")):
             continue
+        m = re.match(r'\{marker ([^}]+)\}', line)
+        if m:
+            # Carried onto the heading that follows so the in-page
+            # {help ssc2##marker:...} cross-references still resolve.
+            marker = m.group(1)
+            continue
         if re.match(r'\{p2col', line):        # manual-style header block
-            m = re.search(r'\{p2col:(.*?)\}(.*)', line)
-            if m and not convert.description:  # keep the one-line description
-                d = inline(m.group(2)).strip().rstrip('.')
-                convert.description = re.sub(r'^(?:&mdash;|[}\s])+', '', d)
+            _, sep, rest = line.partition("}}")
+            if sep and not convert.description:  # keep the one-line description
+                convert.description = plain(rest).rstrip(".")
             continue                           # h1/subtitle replace the header
         if line.startswith("{p2colreset"):
             continue
@@ -83,19 +185,24 @@ def convert(smcl: str) -> str:
             title = m.group(1).strip()
             skipping = title in SKIP_SECTIONS  # e.g. Description: About page covers it
             if not skipping:
-                out.append(f"<h2>{inline(title)}</h2>")
+                out.append(f"## {inline(title)}")
+                if marker:
+                    out.append(f"{{: #{marker}}}")
+                out.append("")
+            marker = None
             continue
         if skipping:
             continue
         if not line.strip():
             flush()
             continue
-        m = re.match(r'\{(pstd|phang|pmore|p \d+ \d+ \d+?)\}(.*)', line)
+        m = re.match(r'\{(pstd|phang2?|pmore|p \d+ \d+ \d+?)\}(.*)', line)
         if m:
             flush()
             tag = m.group(1)
             mode = "phang" if tag in ("phang", "pmore") else \
-                   ("syn" if tag.startswith("p 8") or tag.startswith("p 4 6") else None)
+                   ("syn" if tag in ("phang2",) or tag.startswith("p 8")
+                    or tag.startswith("p 4 6") else None)
             para.append(m.group(2))
             continue
         if "{p_end}" in line:
@@ -104,7 +211,7 @@ def convert(smcl: str) -> str:
             continue
         para.append(line)
     flush()
-    return "\n".join(out)
+    return "\n".join(out).strip() + "\n"
 
 
 PAGE = """---
@@ -112,23 +219,29 @@ layout: default
 title: Reference
 nav_order: 3
 ---
-<h1>Reference</h1>
-<p class="manhead">{desc}. Web rendering of the Stata help file
-(<code>help ssc2</code>).</p>
+
+# Reference
+
+{desc}. Web rendering of the Stata help file (`help ssc2`).
+{{: .manhead}}
+
 {body}
-<p class="gennote">Generated automatically from
-<code>sthlp/ssc2.sthlp</code> on {stamp}. The in-Stata help file is the
-authoritative version.</p>
+
+Generated automatically from `sthlp/ssc2.sthlp` on {stamp}. The in-Stata
+help file is the authoritative version.
+{{: .gennote}}
 """
 
 
 def main() -> int:
     src = sys.argv[1] if len(sys.argv) > 1 else "sthlp/ssc2.sthlp"
-    dst = sys.argv[2] if len(sys.argv) > 2 else "site/reference.html"
+    dst = sys.argv[2] if len(sys.argv) > 2 else "site/reference.md"
     body = convert(open(src, encoding="utf-8").read())
     # quality gate: no raw SMCL may survive into the page. Failing the
     # build blocks a bad deploy and makes the problem visible in CI.
-    leftovers = re.findall(r'\{[a-zA-Z][^}]*\}', body)
+    # An escaped brace is literal text out of the help file and `{:`
+    # opens a kramdown attribute list; neither is leftover SMCL.
+    leftovers = re.findall(r'(?<!\\)\{[a-zA-Z][^}]*\}', body)
     if leftovers:
         print("ERROR: unconverted SMCL reached the output:", file=sys.stderr)
         for item in sorted(set(leftovers))[:10]:
