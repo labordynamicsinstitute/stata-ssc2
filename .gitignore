@@ -10,3 +10,6 @@ site/.jekyll-metadata
 # Bundler
 site/vendor/
 site/.bundle/
+
+# Local site preview staging (tools/serve_site.sh)
+site/.preview/

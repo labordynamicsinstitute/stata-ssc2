@@ -72,6 +72,13 @@ jobs:
       - name: Build Jekyll site
         run: bundle exec jekyll build
         working-directory: site
+      - name: Check the built site
+        # Verifies that every root-absolute link carries the baseurl
+        # prefix. Without it the theme's stylesheets 404 on project
+        # Pages and the site deploys completely unstyled -- which is
+        # invisible in the build log, so it is checked here rather than
+        # left to be noticed after deployment.
+        run: python3 -m unittest tests.test_site -v
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v5
         with:
