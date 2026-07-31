@@ -104,6 +104,23 @@ The project website is at <https://labordynamicsinstitute.github.io/stata-ssc2/>
 built with Jekyll using the
 [just-the-docs](https://just-the-docs.com/) theme.
 
+To preview it locally, use [`tools/serve_site.sh`](tools/serve_site.sh),
+which runs Jekyll in a container built from
+[`site/Dockerfile`](site/Dockerfile) with the same Ruby and gems as the
+**site** workflow. Docker or Podman is the only prerequisite.
+
+```bash
+tools/serve_site.sh          # live-reloading preview, then open the URL it prints
+tools/serve_site.sh build    # full CI replay: generators + jekyll build into site/_site
+tools/serve_site.sh test     # build, then run the checks in tests/test_site.py
+```
+
+The preview is served under the site's `baseurl`, at
+<http://localhost:4000/stata-ssc2/> rather than at `localhost:4000` —
+deliberately, because it is how GitHub project Pages serves it. Serving
+at the root would hide broken asset paths, which is precisely the bug
+this harness was built to catch.
+
 ## Releasing
 
 Releases are cut by the **release** GitHub Actions workflow, which
