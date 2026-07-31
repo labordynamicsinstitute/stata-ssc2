@@ -63,7 +63,7 @@ jobs:
       - name: Refresh embedded snapshot and package data
         run: python3 site/build_data.py site/index.html
       - name: Regenerate Reference page from the Stata help file
-        run: python3 site/build_reference.py sthlp/ssc2.sthlp site/reference.html
+        run: python3 site/build_reference.py sthlp/ssc2.sthlp site/reference.md
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
