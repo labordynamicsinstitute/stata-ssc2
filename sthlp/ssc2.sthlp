@@ -120,17 +120,6 @@ see {helpb ado update:[R] ado update}
 for an automated way of keeping those packages up to date.
 
 
-{marker linkspdf}{...}
-{title:Links to PDF documentation}
-
-        {mansection R ssc2Quickstart:Quick start}
-
-        {mansection R ssc2Remarksandexamples:Remarks and examples}
-
-{pstd}
-The above sections are not included in this help file.
-
-
 {marker overview}{...}
 {title:Command overview}
 
@@ -353,72 +342,26 @@ and retiring the snapshot entry keeps the package singly tracked).
     computer/operating system.
 
 
-{marker remarks}{...}
-{title:Remarks}
-
-{pstd}
-Users can add new features to Stata, and some users choose to make new features
-that they have written available to others via the web.  The files that
-comprise a new feature are called a package, and a package usually consists of
-one or more ado-files and help files.  The {helpb net} command makes it
-reasonably easy to install and uninstall packages regardless of where
-they are on the web.  One site, the ssc2, has become particularly
-popular as a repository for additions to Stata.  Command {cmd:ssc2} is an
-easier to use version of {cmd:net} designed especially for the ssc2.
-
-{pstd}
-Many packages are available at the ssc2.  Packages are named, such as
-{hi:oaxaca}, {hi:estout}, or {hi:egenmore}.  At ssc2, capitalization is not
-significant, so {hi:Oaxaca}, {hi:ESTOUT}, and {hi:EGENmore} are
-ways of writing the same package names.
-
-{pstd}
-When you type
-
-	{cmd:. ssc2 install oaxaca}
-
-{pstd}
-the files associated with the package are downloaded and
-installed on your computer.  Package names usually correspond to the names of
-the commands being added to Stata, so one would expect that installing the
-package {hi:oaxaca} will add command {cmd:oaxaca} to Stata on your
-computer, and expect that typing {cmd:help oaxaca} will provide the
-documentation.  That is the situation here, but that is not
-always so.  Before or after installing a package, type {cmd:ssc2 describe}
-{it:pkgname} to obtain the details.
-
 
 {marker examples}{...}
 {title:Examples}
 
-{pstd}Describe most recently added or updated packages at ssc2{p_end}
-{phang2}{cmd:. ssc2 new}
-
-{pstd}Describe the most popular packages at ssc2{p_end}
-{phang2}{cmd:. ssc2 hot}
 
 {pstd}Describe the package {cmd:oaxaca}{p_end}
 {phang2}{cmd:. ssc2 describe oaxaca}
 
-{pstd}Describe the package {cmd:oaxaca} and save the description to the
-file {cmd:oaxaca.log}{p_end}
-{phang2}{cmd:. ssc2 describe oaxaca, saving(oaxaca.log)}
+{pmore}
+    This passes through the request to {cmd:ssc}, describing the package on SSC.
 
-{pstd}List all packages, along with a brief description, that begin with the
-letter {cmd:o}{p_end}
-{phang2}{cmd:. ssc2 describe o}
+{pstd}Describe the package {cmd:oaxaca} as of a specific date{p_end}
+{phang2}{cmd:. ssc2 describe oaxaca, date(2022-01-07)}
 
-{pstd}Same as above, but also save the listing to the file {cmd:o.index}{p_end}
-{phang2}{cmd:. ssc2 describe o, saving(o.index)}
-
-{pstd}Install package {cmd:oaxaca}{p_end}
-{phang2}{cmd:. ssc2 install oaxaca}
+{pstd}Install package {cmd:oaxaca} as of a specific date{p_end}
+{phang2}{cmd:. ssc2 install oaxaca, date(2022-01-07)}
 
 {pstd}Uninstall previously installed package {cmd:oaxaca}{p_end}
 {phang2}{cmd:. ssc2 uninstall oaxaca}
 
-{pstd}Type file {cmd:whitetst.hlp} that is stored at ssc2{p_end}
-{phang2}{cmd:. ssc2 type whitetst.hlp}
+{pmore}
+    This uninstalls the installed copy of {cmd:oaxaca}, regardless of how it was installed.
 
-{pstd}Copy file {cmd:whitetst.ado} from ssc2 to your computer{p_end}
-{phang2}{cmd:. ssc2 copy whitetst.ado}{p_end}
