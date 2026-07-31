@@ -1,16 +1,16 @@
 # Build and deploy the ssc2 website (site/ directory) via Action-based
-# GitHub Pages deployment.
+# GitHub Pages deployment using Jekyll (just-the-docs theme).
 #
 #   build:  runs on every PR and every push to main, weekly by cron, and
 #           whenever release.yml calls this workflow. Renders version
 #           placeholders to the newest stable release tag, then refreshes
 #           the embedded snapshot/package data and regenerates the
-#           Reference page from the Stata help file, then uploads the
-#           site as the Pages artifact -- rendering runs first so that
-#           any @TOKEN@-shaped string spliced in by the data refresh
-#           cannot trip render_docs.py's leftover-placeholder check. On
-#           PRs this artifact can be downloaded from the run page to
-#           inspect the HTML without deploying.
+#           Reference page from the Stata help file, then builds the
+#           Jekyll site and uploads the artifact -- rendering runs first
+#           so that any @TOKEN@-shaped string spliced in by the data
+#           refresh cannot trip render_docs.py's leftover-placeholder
+#           check. On PRs this artifact can be downloaded from the run
+#           page to inspect the output without deploying anything.
 #   deploy: runs only for main (pushes, cron, and release calls), never PRs.
 #
 # The weekly rebuild keeps embedded data at most 7 days stale; the page's
@@ -59,15 +59,23 @@ jobs:
         # Runs before the data refresh below so that upstream mirror data
         # spliced into index.html cannot introduce an @TOKEN@-shaped
         # string that render_docs.py would otherwise fail the build on.
-        run: python3 tools/render_docs.py site/about.html site/index.html
+        run: python3 tools/render_docs.py site/about.md site/index.html
       - name: Refresh embedded snapshot and package data
         run: python3 site/build_data.py site/index.html
       - name: Regenerate Reference page from the Stata help file
         run: python3 site/build_reference.py sthlp/ssc2.sthlp site/reference.html
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: site
+      - name: Build Jekyll site
+        run: bundle exec jekyll build
+        working-directory: site
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: site/_site
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

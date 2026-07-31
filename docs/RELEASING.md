@@ -146,7 +146,7 @@ them — see below.
 | `@DATE_COMPACT@` | `20260730` |
 
 They appear in `ado/ssc2.ado`, `sthlp/ssc2.sthlp`, `ssc2.pkg`,
-`stata.toc`, `README.md`, `site/about.html` and `site/index.html`.
+`stata.toc`, `README.md`, `site/about.md` and `site/index.html`.
 `tests/test_sources.py` fails the build if a literal version creeps back
 into a source file, or if an undefined token is used.
 

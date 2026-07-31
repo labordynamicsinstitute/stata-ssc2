@@ -108,7 +108,7 @@ class TestCitationFile(unittest.TestCase):
         self.assertRegex(read("CITATION.cff"), r"(?m)^version: \S+$")
 
 
-DOC_FILES = ["README.md", "site/about.html", "site/index.html"]
+DOC_FILES = ["README.md", "site/about.md", "site/index.html"]
 
 
 class TestDocsUsePlaceholders(unittest.TestCase):
@@ -116,7 +116,7 @@ class TestDocsUsePlaceholders(unittest.TestCase):
         self.assertIn("@VERSION_TAG@", read("README.md"))
 
     def test_about_page_pins_via_placeholder(self):
-        self.assertIn("@VERSION_TAG@", read("site/about.html"))
+        self.assertIn("@VERSION_TAG@", read("site/about.md"))
 
     def test_index_page_pins_via_placeholder(self):
         self.assertIn("@VERSION_TAG@", read("site/index.html"))

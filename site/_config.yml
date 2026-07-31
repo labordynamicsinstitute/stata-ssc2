@@ -1,0 +1,17 @@
+title: ssc2
+description: Install Stata packages from date-based snapshots of the SSC archive
+theme: just-the-docs
+
+url: "https://labordynamicsinstitute.github.io/stata-ssc2"
+
+search_enabled: true
+color_scheme: light
+
+nav_external_links:
+  - title: GitHub
+    url: https://github.com/labordynamicsinstitute/stata-ssc2
+    hide_icon: false
+
+exclude:
+  - build_data.py
+  - build_reference.py

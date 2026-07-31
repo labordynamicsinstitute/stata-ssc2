@@ -1,3 +1,12 @@
 # Python bytecode from the tools/ and tests/ modules.
 __pycache__/
 *.py[cod]
+
+# Jekyll build output and cache
+site/_site/
+site/.jekyll-cache/
+site/.jekyll-metadata
+
+# Bundler
+site/vendor/
+site/.bundle/

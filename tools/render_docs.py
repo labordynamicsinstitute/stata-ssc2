@@ -8,7 +8,7 @@ in place, so run it only on a throwaway checkout (a CI working copy),
 never on a working tree you intend to commit.
 
 Usage:
-    python3 tools/render_docs.py README.md site/about.html site/index.html
+    python3 tools/render_docs.py README.md site/about.md site/index.html
     python3 tools/render_docs.py --version 2.2.2 site/index.html
 
 With no --version, the newest stable release tag in --repo is used, so
