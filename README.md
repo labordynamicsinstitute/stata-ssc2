@@ -1,3 +1,13 @@
+[![tests](https://github.com/ssc-ng/ssc2/actions/workflows/tests.yml/badge.svg)](https://github.com/ssc-ng/ssc2/actions/workflows/tests.yml)
+
+> **🚚 THIS REPOSITORY HAS BEEN MIGRATED AND IS NOW ARCHIVED (as of 2026-09-24)!**
+
+---
+
+➡️**Please see https://github.com/ssc-ng/ssc2 instead!** The website is now at <https://ssc-ng.net/ssc2/>.
+
+---
+
 # ssc2
 
 Install Stata packages from **date-based snapshots** of the SSC archive,

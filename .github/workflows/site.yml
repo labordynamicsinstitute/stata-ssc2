@@ -1,28 +1,17 @@
-# Build and deploy the ssc2 website (site/ directory) via Action-based
-# GitHub Pages deployment using Jekyll (just-the-docs theme).
+# This repository has moved to https://github.com/ssc-ng/ssc2 and the
+# website to https://ssc-ng.net/ssc2/. GitHub Pages offers no server-side
+# redirects, so this workflow deploys the static stubs in redirect/
+# instead of the Jekyll site in site/:
 #
-#   build:  runs on every PR and every push to main, weekly by cron, and
-#           whenever release.yml calls this workflow. Renders version
-#           placeholders to the newest stable release tag, then refreshes
-#           the snapshot/package data embedded in the picker script
-#           (site/assets/js/picker.js) and regenerates the Reference page
-#           from the Stata help file, then builds the Jekyll site and
-#           uploads the artifact -- rendering runs first so that any
-#           @TOKEN@-shaped string spliced in by the data refresh cannot
-#           trip render_docs.py's leftover-placeholder check. On PRs this artifact can be downloaded from the run
-#           page to inspect the output without deploying anything.
-#   deploy: runs only for main (pushes, cron, and release calls), never PRs.
-#   preview: runs only for pull requests opened from a branch of this
-#           repository (not a fork -- forks can't read deploy secrets).
-#           Deploys the built site to Cloudflare Pages as a per-PR preview
-#           and posts (or updates) the preview link as a PR comment. See
-#           tools/DEPLOY-PREVIEW.md for the one-time Cloudflare setup.
+#   - index.html, about.html, reference.html, articles.html redirect to
+#     their counterparts under https://ssc-ng.net/ssc2/ (JavaScript, with
+#     a meta refresh fallback and a canonical link);
+#   - 404.html catches every other path and maps /stata-ssc2/<path> to
+#     https://ssc-ng.net/ssc2/<path>, keeping query string and fragment.
 #
-# The weekly rebuild keeps embedded data at most 7 days stale; the page's
-# own single async API call tops up newer snapshot dates per visit.
-# Data regeneration and placeholder rendering happen in CI at build time
-# and land in the deployed artifact only -- nothing is committed back to
-# the repository, so main keeps its @TOKEN@ placeholders.
+# Run it once (push to main or workflow_dispatch) BEFORE archiving the
+# repository: Actions do not run on archived repositories, but the last
+# Pages deployment keeps being served.
 #
 # Requires: repository Settings -> Pages -> Source = "GitHub Actions".
 
@@ -30,12 +19,8 @@ name: site
 on:
   push:
     branches: [main]
-  pull_request:
-  schedule:
-    - cron: "30 6 * * 1"      # Mondays 06:30 UTC (after the mirror's daily run)
   workflow_dispatch: {}
-  # Called by release.yml so a new release republishes the site with its
-  # install instructions pointing at the version just published.
+  # Still called by release.yml.
   workflow_call: {}
 
 permissions:
@@ -52,65 +37,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          # tools/render_docs.py resolves the newest stable release tag,
-          # which the default shallow checkout does not fetch.
-          fetch-depth: 0
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      - name: Render version placeholders in the site
-        # Edits the CI working copy in place; nothing is committed back.
-        # Runs before the data refresh below so that upstream mirror data
-        # spliced into the picker script cannot introduce an
-        # @TOKEN@-shaped string that render_docs.py would otherwise fail
-        # the build on. index.html carries no tokens today but stays on
-        # the list so any future ones are rendered rather than deployed.
-        run: python3 tools/render_docs.py site/about.md site/index.html site/assets/js/picker.js
-      - name: Refresh embedded snapshot and package data
-        run: python3 site/build_data.py site/assets/js/picker.js
-      - name: Regenerate Reference page from the Stata help file
-        run: python3 site/build_reference.py sthlp/ssc2.sthlp site/reference.md
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
-          working-directory: site
-      - name: Build Jekyll site
-        run: bundle exec jekyll build
-        working-directory: site
-      - name: Check the built site
-        # Verifies that every root-absolute link carries the baseurl
-        # prefix. Without it the theme's stylesheets 404 on project
-        # Pages and the site deploys completely unstyled -- which is
-        # invisible in the build log, so it is checked here rather than
-        # left to be noticed after deployment.
-        run: python3 -m unittest tests.test_site -v
-      - name: Upload site artifact
+      - name: Upload redirect artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: site/_site
-      - name: Build Jekyll site for the Cloudflare preview
-        # Cloudflare Pages serves PR previews at the domain root
-        # (pr-<n>.<project>.pages.dev/), not under /stata-ssc2/, so the
-        # main build's baseurl-prefixed asset links would 404 there and
-        # the preview would render unstyled. Rebuild into a separate
-        # directory with an empty baseurl for that deploy only; the
-        # GitHub Pages artifact above is unaffected.
-        run: bundle exec jekyll build --baseurl "" --destination _site-preview
-        working-directory: site
-      - name: Upload site artifact for preview deploy
-        # upload-pages-artifact above produces a Pages-specific tarball
-        # that wrangler can't consume, so the preview job needs its own
-        # plain copy of the built site.
-        uses: actions/upload-artifact@v4
-        with:
-          name: site-preview
-          path: site/_site-preview
-          retention-days: 14
+          path: redirect
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:
@@ -119,38 +52,3 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
-
-  preview:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write     # only for the PR comment
-    steps:
-      - name: Download site artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: site-preview
-          path: _site
-      - name: Deploy PR preview
-        id: preview
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: >-
-            pages deploy ./_site
-            --project-name=${{ github.event.repository.name }}
-            --branch=pr-${{ github.event.pull_request.number }}
-      - name: Publish preview link
-        if: steps.preview.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-          URL: ${{ steps.preview.outputs.pages-deployment-alias-url }}
-        run: |
-          echo "📖 Preview: $URL" >> "$GITHUB_STEP_SUMMARY"
-          gh pr comment "$PR" --repo "$REPO" --edit-last --create-if-none \
-            --body "📖 **Preview:** $URL — commit \`${GITHUB_SHA:0:7}\`"
